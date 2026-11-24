@@ -63,9 +63,9 @@ body{display:flex;align-items:center;justify-content:center}
 #title{position:absolute;inset:0;text-align:center;color:#fff;background:radial-gradient(ellipse at center,rgba(10,14,30,.05) 30%,rgba(10,14,30,.8) 100%)}
 .tt{font-size:15px;line-height:17px;margin-top:9px;letter-spacing:1px;color:#ffd23f;text-shadow:1px 1px 0 #e84a5f,2px 2px 0 #24305e}
 .ts{font-size:7px;color:#c9d4ff;margin-top:3px;text-shadow:1px 1px 0 #000}
-.tm{position:absolute;left:14px;right:14px;bottom:12px;font-size:7px;line-height:10px;text-align:left;background:rgba(20,26,48,.88);border:1px solid #a9b8ef;border-radius:3px;padding:3px 7px 4px}
+.tm{position:absolute;left:14px;right:14px;bottom:11px;font-size:7px;line-height:10px;text-align:left;background:rgba(20,26,48,.88);border:1px solid #a9b8ef;border-radius:3px;padding:3px 7px 4px}
 .tm .th{color:#ffd23f;font-size:7px;line-height:9px;border-bottom:1px solid rgba(169,184,239,.5);margin-bottom:2px;padding-bottom:1px}
-.tm .tc{display:flex;justify-content:space-between;padding-left:9px;position:relative;color:#c9d4ff}
+.tm .tc{display:flex;justify-content:space-between;padding-left:9px;position:relative;color:#c9d4ff;line-height:9px}
 .tm .tc.sel{color:#fff}
 .tm .tc.sel::before{content:"\25B6";position:absolute;left:0;color:#e84a5f}
 .tm .dots{color:#e84a5f;font-size:6px}
@@ -106,15 +106,13 @@ body.touch{touch-action:none;-webkit-user-select:none;user-select:none;overscrol
 #abtn{position:absolute;width:150px;height:120px}
 #abtn .ab{width:74px;height:74px;right:0;top:0;border-radius:50%;background:rgba(232,74,95,.85);font-size:26px}
 #abtn .bb{width:58px;height:58px;left:0;bottom:0;border-radius:50%;font-size:22px}
-#touch .menub,#touch .runb{width:92px;height:36px;border-radius:18px;font-size:13px}
+#touch .menub{width:92px;height:36px;border-radius:18px;font-size:13px}
 body.portrait #dpad{left:18px;bottom:calc(30px + env(safe-area-inset-bottom))}
 body.portrait #abtn{right:18px;bottom:calc(54px + env(safe-area-inset-bottom))}
 body.portrait #touch .menub{right:18px;bottom:calc(196px + env(safe-area-inset-bottom))}
-body.portrait #touch .runb{left:18px;bottom:calc(214px + env(safe-area-inset-bottom))}
 body:not(.portrait) #dpad{left:max(10px,env(safe-area-inset-left));top:50%;margin-top:-60px;transform:scale(.85);transform-origin:left top}
 body:not(.portrait) #abtn{right:max(10px,env(safe-area-inset-right));top:50%;margin-top:-40px;transform:scale(.85);transform-origin:right top}
 body:not(.portrait) #touch .menub{right:max(14px,env(safe-area-inset-right));top:12px}
-body:not(.portrait) #touch .runb{left:max(14px,env(safe-area-inset-left));top:12px}
 </style>
 </head>
 <body>
@@ -161,7 +159,6 @@ body:not(.portrait) #touch .runb{left:max(14px,env(safe-area-inset-left));top:12
     <button data-k=" " class="tb ab">A</button>
   </div>
   <button data-k="Escape" class="tb menub">MEN&Uuml;</button>
-  <button data-k="Shift" class="tb runb">RENNEN</button>
 </div>
 
 <script>
@@ -222,7 +219,7 @@ const SFX = {
 };
 
 /* ================= Karte ================= */
-const MAP = [
+const MAP1 = [
   "####################################",
   "#==W====W==#===W======#SSSSSSSSSSSS#",
   "#..........#..........#,,,,,,,,,,,,#",
@@ -245,10 +242,14 @@ const MAP = [
   "#,,,,,,,,,,#P........P#......#P___P#",
   "####################################"
 ];
-const MW = MAP[0].length, MH = MAP.length;
+let MAP = MAP1, MW = MAP1[0].length, MH = MAP1.length;
 const WALK = ".,_d";
 const tileAt = (x, y) => (y < 0 || y >= MH || x < 0 || x >= MW) ? "#" : MAP[y][x];
 function roomAt(x, y) {
+  if (CASE && CASE.rooms) { for (const r of CASE.rooms) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) return r.n; return CASE.defaultRoom || "Flur"; }
+  return roomAt1(x, y);
+}
+function roomAt1(x, y) {
   if (y <= 7) return x < 11 ? "SOC" : x < 22 ? "Forensik" : "Serverraum";
   if (y <= 12) return "Flur";
   return x < 11 ? "Küche" : x < 22 ? "Krisenstab" : x < 29 ? "CISO" : "Vorstand";
@@ -257,7 +258,7 @@ function roomAt(x, y) {
 /* ================= 3D-Darstellung ================= */
 var renderer = null, scene, camera, bScene, bCamera, hemi, moon, pLight, alarmA, alarmB;
 var player3, NPC3D = [], MARKS3 = [], WALLS3 = [], bMoth = null, bPlayer = null, bParts = [], dawn = 0;
-var camPos = null, camLook = null, V1 = null;
+var camPos = null, camLook = null, V1 = null, WG = null, groundM = null;
 const LOOK3 = {
   lena:   { skin: "#f1c7a5", hair: "#c0392b", style: "long",  shirt: "#16a085", pants: "#2d3142", glasses: true },
   tobias: { skin: "#e0b08a", hair: "#4a3426", style: "short", shirt: "#5d6675", pants: "#3b3b3b", beard: true },
@@ -272,7 +273,16 @@ const LOOK3 = {
   mertens:{ skin: "#e8b995", hair: "#8d8d8d", style: "short", shirt: "#6d8f3c", pants: "#3a3a3a", beard: true },
   dennis: { skin: "#f0c8a8", hair: "#3b2a1e", style: "short", shirt: "#2e86c1", pants: "#2c3e50", glasses: true },
   voss:   { skin: "#e6b591", hair: "#c9b28a", style: "short", shirt: "#4a4a52", pants: "#26262c", tie: "#1a1a1a" },
-  sven:   { skin: "#f3d6bf", hair: "#e2c27a", style: "spiky", shirt: "#0f6b78", pants: "#2b2f3a", glasses: true }
+  sven:   { skin: "#f3d6bf", hair: "#e2c27a", style: "spiky", shirt: "#0f6b78", pants: "#2b2f3a", glasses: true },
+  martina:{ skin: "#f1c9a8", hair: "#a0522d", style: "long",  shirt: "#d35400", pants: "#2d3142", glasses: true, badge: true },
+  hahn:   { skin: "#e9bd98", hair: "#2b2b2b", style: "short", shirt: "#ecf0f1", pants: "#1f2d4d", tie: "#2980b9" },
+  weber:  { skin: "#f4d2b8", hair: "#3a2418", style: "bun",   shirt: "#1f2d4d", pants: "#1f2d4d", glasses: true, badge: true },
+  jonas:  { skin: "#c58b62", hair: "#111111", style: "cap", cap: "#2ecc71", shirt: "#34495e", pants: "#2c3e50", beard: true },
+  nadine: { skin: "#f6d5bb", hair: "#c0392b", style: "bun",   shirt: "#16a085", pants: "#2d3142", badge: true },
+  ines:   { skin: "#d9a47e", hair: "#1b1b1b", style: "long",  shirt: "#8e44ad", pants: "#2c3e50", glasses: true },
+  yusuf:  { skin: "#b97a50", hair: "#151515", style: "short", shirt: "#f39c12", pants: "#2d3142", beard: true, badge: true },
+  anja:   { skin: "#f2cfb3", hair: "#e5c158", style: "long",  shirt: "#2c82c9", pants: "#2d3142", badge: true },
+  felix:  { skin: "#efc6a4", hair: "#6b3e26", style: "spiky", shirt: "#27ae60", pants: "#3b3b3b", glasses: true }
 };
 const PLAYER_LOOK3 = { skin: "#f0c8a8", hair: "#5a3825", style: "spiky", shirt: "#2f6fd6", pants: "#22273a", badge: true };
 const FLOOR3 = {
@@ -360,30 +370,55 @@ function table3(g, room, x, y) {
   if (room === "Küche" && rnd(x, y, 6) > 0.5) { bx(g, 0.3, 0.12, 0.3, "#f8c0c8", 0, 0.82, 0); bx(g, 0.3, 0.03, 0.3, "#ffffff", 0, 0.9, 0); }
 }
 
+function netcab3(g) {
+  bx(g, 0.86, 1.6, 0.8, "#2a2f3d", 0, 0.8, 0);
+  bx(g, 0.88, 0.05, 0.82, "#3b4254", 0, 1.62, 0);
+  const cols = ["#e74c3c", "#3498db", "#f1c40f", "#2ecc71", "#9b59b6"];
+  for (let i = 0; i < 5; i++) {
+    bx(g, 0.74, 0.12, 0.02, "#3b4254", 0, 0.35 + i * 0.25, 0.41);
+    for (let j = 0; j < 6; j++) bx(g, 0.04, 0.04, 0.02, null, -0.3 + j * 0.11, 0.35 + i * 0.25, 0.425, (i + j) % 4 === 0 ? LEDA : LEDG);
+    bx(g, 0.03, 0.22, 0.03, cols[i], 0.33, 0.25 + i * 0.25, 0.43);
+  }
+  bx(g, 0.5, 0.06, 0.02, null, -0.1, 1.45, 0.42, SCR_TEAL);
+}
+function sofa3(g) {
+  bx(g, 0.96, 0.3, 0.6, "#c0563f", 0, 0.25, 0.05);
+  bx(g, 0.96, 0.4, 0.16, "#a84834", 0, 0.5, -0.22);
+  bx(g, 0.14, 0.42, 0.6, "#a84834", -0.42, 0.33, 0.05); bx(g, 0.14, 0.42, 0.6, "#a84834", 0.42, 0.33, 0.05);
+  bx(g, 0.3, 0.14, 0.1, "#f1c40f", 0.2, 0.47, -0.1);
+}
 /* ---- Welt ---- */
 function buildWorld() {
+  WG = new THREE.Group(); scene.add(WG); WALLS3 = [];
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
     const ch = MAP[y][x], room = roomAt(x, y);
-    if (ch === "#" || ch === "=" || ch === "W") {
+    if (ch === "#" || ch === "=" || ch === "W" || ch === "V") {
       const outer = ch === "#";
-      const m = bx(scene, 1, 1.5, 1, outer ? "#5d6888" : "#e2dccf", x, 0.75, y);
+      const m = bx(WG, 1, 1.5, 1, outer ? "#5d6888" : ((CASE && CASE.wallColor) || "#e2dccf"), x, 0.75, y);
       const entry = { m, x, y, s: 1, extra: [] };
-      if (!outer) entry.extra.push(bx(scene, 1, 0.08, 0.06, "#8a7d68", x, 0.04, y + 0.52));
+      if (!outer) entry.extra.push(bx(WG, 1, 0.08, 0.06, "#8a7d68", x, 0.04, y + 0.52));
+      if (ch === "V") {
+        entry.extra.push(bx(WG, 0.96, 0.66, 0.04, "#111622", x, 0.95, y + 0.515));
+        const sm = [SCR_BLUE, SCR_ALERT, SCR_TEAL][(x + y) % 3];
+        entry.extra.push(bx(WG, 0.88, 0.58, 0.01, null, x, 0.95, y + 0.54, sm));
+        entry.extra.push(bx(WG, 0.6, 0.03, 0.01, "#ffffff", x - 0.08, 1.12, y + 0.546));
+        entry.extra.push(bx(WG, 0.4, 0.03, 0.01, "#ffd23f", x + 0.1, 0.8, y + 0.546));
+      }
       if (ch === "W") {
-        entry.extra.push(bx(scene, 0.86, 0.61, 0.03, "#9aa0a8", x, 0.95, y + 0.515));
-        entry.extra.push(bx(scene, 0.8, 0.55, 0.03, "#fbfbfb", x, 0.95, y + 0.53));
-        entry.extra.push(bx(scene, 0.42, 0.035, 0.01, "#2d6cdf", x - 0.1, 1.08, y + 0.548));
-        entry.extra.push(bx(scene, 0.3, 0.035, 0.01, "#e3342f", x + 0.08, 0.98, y + 0.548));
-        entry.extra.push(bx(scene, 0.5, 0.035, 0.01, "#2f9e44", x - 0.04, 0.86, y + 0.548));
+        entry.extra.push(bx(WG, 0.86, 0.61, 0.03, "#9aa0a8", x, 0.95, y + 0.515));
+        entry.extra.push(bx(WG, 0.8, 0.55, 0.03, "#fbfbfb", x, 0.95, y + 0.53));
+        entry.extra.push(bx(WG, 0.42, 0.035, 0.01, "#2d6cdf", x - 0.1, 1.08, y + 0.548));
+        entry.extra.push(bx(WG, 0.3, 0.035, 0.01, "#e3342f", x + 0.08, 0.98, y + 0.548));
+        entry.extra.push(bx(WG, 0.5, 0.035, 0.01, "#2f9e44", x - 0.04, 0.86, y + 0.548));
       }
       WALLS3.push(entry);
       continue;
     }
-    const fc = FLOOR3[room] || FLOOR3.Flur;
+    const fc = (CASE && CASE.floors && CASE.floors[room]) || FLOOR3[room] || FLOOR3.Flur;
     let col = fc[(x + y) % 2];
     if (ch === "_") col = (x + y) % 2 ? "#9b313c" : "#8b2a34";
-    const f = bx(scene, 1, 0.1, 1, col, x, -0.05, y); f.castShadow = false;
-    if (ch === "d") { const mt = bx(scene, 0.8, 0.02, 0.7, "#6b4f3a", x, 0.01, y); mt.castShadow = false; }
+    const f = bx(WG, 1, 0.1, 1, col, x, -0.05, y); f.castShadow = false;
+    if (ch === "d") { const mt = bx(WG, 0.8, 0.02, 0.7, "#6b4f3a", x, 0.01, y); mt.castShadow = false; }
     const g = new THREE.Group(); g.position.set(x, 0, y);
     switch (ch) {
       case "D": desk3(g, room, false, x, y); break;
@@ -393,12 +428,25 @@ function buildWorld() {
       case "K": coffee3(g); break;
       case "B": shelf3(g, x, y); break;
       case "T": table3(g, room, x, y); break;
+      case "F": netcab3(g); break;
+      case "C": sofa3(g); break;
     }
-    if (g.children.length) scene.add(g);
+    if (g.children.length) WG.add(g);
   }
   // Serverraum-Rückwand: Racks in Reihe 1 stehen in der Wand
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), M3("#0d111d"));
-  ground.rotation.x = -Math.PI / 2; ground.position.set(18, -0.11, 10); ground.receiveShadow = true; scene.add(ground);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 140), M3("#0d111d"));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(MW / 2, -0.11, MH / 2); ground.receiveShadow = true; WG.add(ground);
+  if (moon) {
+    moon.position.set(MW / 2 - 10, 22, MH / 2 + 20); moon.target.position.set(MW / 2, 0, MH / 2);
+    const sc = moon.shadow.camera, r = Math.max(MW, MH) * 0.8 + 4;
+    sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r; sc.updateProjectionMatrix();
+  }
+  const ap = (CASE && CASE.alarmPos) || [[5.5, 4.5], [28.5, 4.5]];
+  if (alarmA) { alarmA.position.set(ap[0][0], 2.2, ap[0][1]); alarmB.position.set(ap[1][0], 2.2, ap[1][1]); }
+}
+function snapCam3D() {
+  if (!camPos || !P) return;
+  camPos.set(P.x, 9.5, P.y + 7.8); camLook.set(P.x, 0.4, P.y);
 }
 
 /* ---- Figuren ---- */
@@ -567,8 +615,137 @@ function makeCloud(boss) {
   g.scale.setScalar(g.userData.base);
   return g;
 }
+/* Fall 4: PHANTOM (Maske, Umhang, kreisende Münzen) */
+function makePhantom() {
+  const g = new THREE.Group(), mats = [];
+  const mk = c => { const m = new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.6, emissive: "#ffffff", emissiveIntensity: 0 }); mats.push(m); return m; };
+  const cloak = mk("#1c1430"), cloak2 = mk("#2e2050"), mask = mk("#f4f1ea");
+  const body = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.7, 6), cloak); body.position.y = 0.85; body.castShadow = true; g.add(body);
+  const hood = new THREE.Mesh(new THREE.IcosahedronGeometry(0.36, 0), cloak2); hood.position.y = 1.75; g.add(hood);
+  const face = new THREE.Group(); face.position.set(0, 1.72, 0.26); g.add(face);
+  bx(face, 0.34, 0.4, 0.06, null, 0, 0, 0, mask); bx(face, 0.08, 0.04, 0.02, null, -0.08, 0.06, 0.035, M3("#111111")); bx(face, 0.08, 0.04, 0.02, null, 0.08, 0.06, 0.035, M3("#111111"));
+  bx(face, 0.14, 0.025, 0.02, null, 0, -0.1, 0.035, M3("#b0002a")); bx(face, 0.04, 0.12, 0.02, null, -0.06, -0.06, 0.035, M3("#b0002a")).rotation.z = 0.5; bx(face, 0.04, 0.12, 0.02, null, 0.06, -0.06, 0.035, M3("#b0002a")).rotation.z = -0.5;
+  const coins = new THREE.Group(); coins.position.y = 0.9; g.add(coins); const gold = EM("#ffcc00", 0.7), bill = EM("#4cd137", 0.5);
+  for (let i = 0; i < 9; i++) { const c = i % 3 === 2 ? new THREE.Mesh(boxGeo(0.26, 0.02, 0.13), bill) : new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.03, 10), gold); c.userData.a = i / 9 * Math.PI * 2; c.userData.h = (i % 3) * 0.3 - 0.3; coins.add(c); }
+  g.userData = { mats, base: 0.82, cy: 0.05, title: 1.0, anim: (t, gg) => {
+    gg.position.y = 0.05 + Math.sin(t * 1.8) * 0.08; face.rotation.y = Math.sin(t * 0.8) * 0.3;
+    coins.children.forEach(c => { const a = c.userData.a + t * 1.6; c.position.set(Math.cos(a) * 0.95, c.userData.h + Math.sin(t * 2 + c.userData.a) * 0.1, Math.sin(a) * 0.8); c.rotation.x = t * 3; c.rotation.z = t * 2; });
+  } };
+  g.scale.setScalar(g.userData.base); return g;
+}
+/* Fall 4, Kampf 2: Deepfake-Hologramm der Finanzvorständin */
+function makeDeepfake() {
+  const g = new THREE.Group(), c = makeChar(LOOK3.weber), mats = [];
+  c.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.emissive = new THREE.Color("#2ee6ff"); o.material.emissiveIntensity = 0.35; o.material.transparent = true; o.material.opacity = 0.82; mats.push(o.material); } });
+  g.add(c);
+  const scan = new THREE.Mesh(boxGeo(0.7, 0.03, 0.5), EM("#2ee6ff", 1.4)); g.add(scan);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 0.08, 16), EM("#2ee6ff", 0.6)); base.position.y = 0.04; g.add(base);
+  g.userData = { mats, base: 1.4, cy: 0, title: 0.9, glow: 0.35, anim: (t, gg) => {
+    animChar(c, false, t); gg.position.y = 0;
+    const gl = Math.floor(t * 7) % 9 === 0; c.position.x = gl ? (Math.random() - 0.5) * 0.12 : 0;
+    c.userData.head.visible = Math.floor(t * 11) % 13 !== 0;
+    scan.position.y = 0.1 + ((t * 0.8) % 1) * 1.25;
+    if (!(B && B.flash)) mats.forEach(m => m.emissiveIntensity = 0.3 + Math.sin(t * 9) * 0.1);
+  } };
+  g.scale.setScalar(g.userData.base); return g;
+}
+/* Fall 5: EISBRECHER (Eisgolem mit Kern) */
+function makeIce(boss) {
+  const g = new THREE.Group(), mats = [];
+  const mk = c => { const m = new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.3, metalness: 0.1, emissive: "#ffffff", emissiveIntensity: 0 }); mats.push(m); return m; };
+  const ice = mk(boss ? "#6fa8dc" : "#a9dcf5"), ice2 = mk(boss ? "#3d7ab8" : "#7fc4e8");
+  const torso = new THREE.Mesh(new THREE.OctahedronGeometry(0.55, 0), ice); torso.position.y = 1.0; torso.scale.set(1, 1.25, 0.8); torso.castShadow = true; g.add(torso);
+  const head = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), ice2); head.position.y = 1.85; g.add(head);
+  const eye = EM(boss ? "#ff3b3b" : "#ffffff", 1.4); bx(g, 0.08, 0.05, 0.02, null, -0.08, 1.87, 0.22, eye); bx(g, 0.08, 0.05, 0.02, null, 0.08, 1.87, 0.22, eye);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), EM(boss ? "#ff3b3b" : "#2ee6ff", 1.5)); core.position.set(0, 1.05, 0.38); g.add(core);
+  const armL = new THREE.Group(), armR = new THREE.Group(); armL.position.set(-0.6, 1.3, 0); armR.position.set(0.6, 1.3, 0); g.add(armL, armR);
+  [armL, armR].forEach((a, i) => { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 0), ice2); m.position.y = -0.35; m.scale.set(0.8, 1.6, 0.8); a.add(m); const f = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), ice); f.position.y = -0.8; a.add(f); });
+  [[-0.25, 0.35], [0.25, 0.35]].forEach(([x, y]) => { const l = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), ice2); l.position.set(x, y, 0); l.scale.set(0.9, 1.6, 0.9); g.add(l); });
+  const spikes = new THREE.Group(); g.add(spikes);
+  for (let i = 0; i < (boss ? 9 : 5); i++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.4 + (i % 3) * 0.15, 4), ice); const a = (i / (boss ? 9 : 5)) * Math.PI - Math.PI / 2; sp.position.set(Math.sin(a) * 0.4, 1.45 + Math.cos(a) * 0.3, -0.2); sp.rotation.z = -a * 0.8; spikes.add(sp); }
+  g.userData = { mats, base: boss ? 1.15 : 0.95, cy: 0, title: 1.0, anim: (t, gg) => {
+    gg.position.y = Math.abs(Math.sin(t * 1.5)) * 0.05; armL.rotation.x = Math.sin(t * 2) * 0.35; armR.rotation.x = -Math.sin(t * 2) * 0.35;
+    core.rotation.y = t * 3; core.material.emissiveIntensity = 1 + Math.sin(t * 6) * 0.5; head.rotation.y = Math.sin(t * 0.9) * 0.4;
+  } };
+  g.scale.setScalar(g.userData.base); return g;
+}
+/* Fall 6: HYDRA (mehrköpfige Schlange) */
+function makeHydra(boss) {
+  const g = new THREE.Group(), mats = [];
+  const mk = c => { const m = new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.7, emissive: "#ffffff", emissiveIntensity: 0 }); mats.push(m); return m; };
+  const skin = mk(boss ? "#5b2a86" : "#2e8b57"), belly = mk(boss ? "#c39bd3" : "#a3d977");
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 0), skin); body.position.y = 0.5; body.scale.set(1.2, 0.8, 1); g.add(body);
+  const heads = [], n = boss ? 5 : 3, eye = EM("#ffd23f", 1.3);
+  for (let i = 0; i < n; i++) {
+    const neck = new THREE.Group(); const a = (i - (n - 1) / 2) * 0.5; neck.position.set(Math.sin(a) * 0.4, 0.7, 0); neck.rotation.z = -a; g.add(neck);
+    for (let j = 0; j < 4; j++) bx(neck, 0.2, 0.26, 0.2, null, 0, 0.13 + j * 0.24, 0, j % 2 ? belly : skin);
+    const hd = new THREE.Group(); hd.position.set(0, 1.12, 0.06); neck.add(hd);
+    bx(hd, 0.3, 0.2, 0.36, null, 0, 0, 0.05, skin); bx(hd, 0.26, 0.06, 0.2, null, 0, -0.1, 0.18, belly);
+    bx(hd, 0.05, 0.05, 0.02, null, -0.09, 0.06, 0.2, eye); bx(hd, 0.05, 0.05, 0.02, null, 0.09, 0.06, 0.2, eye);
+    bx(hd, 0.04, 0.1, 0.04, null, -0.1, 0.14, 0, belly).rotation.z = 0.4; bx(hd, 0.04, 0.1, 0.04, null, 0.1, 0.14, 0, belly).rotation.z = -0.4;
+    heads.push({ neck, hd, ph: i * 1.3 });
+  }
+  const tail = new THREE.Group(); g.add(tail); for (let j = 0; j < 4; j++) bx(tail, 0.22 - j * 0.04, 0.16, 0.24, null, 0.5 + j * 0.2, 0.2, -0.3 - j * 0.12, skin);
+  g.userData = { mats, base: boss ? 0.78 : 0.88, cy: 0, title: 0.9, anim: (t, gg) => {
+    gg.position.y = 0;
+    heads.forEach(h => { h.neck.rotation.x = Math.sin(t * 2.2 + h.ph) * 0.2; h.hd.rotation.x = Math.sin(t * 3 + h.ph) * 0.3; h.hd.rotation.y = Math.sin(t * 1.4 + h.ph) * 0.4; });
+    tail.rotation.y = Math.sin(t * 2) * 0.3;
+  } };
+  g.scale.setScalar(g.userData.base); return g;
+}
+/* Fall 7: KUCKUCK (Vogel) und KUCKUCKSEI (Ei mit Riss) */
+function makeCuckoo() {
+  const g = new THREE.Group(), mats = [];
+  const mk = c => { const m = new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.75, emissive: "#ffffff", emissiveIntensity: 0 }); mats.push(m); return m; };
+  const grey = mk("#6c7a89"), light = mk("#dfe6e9"), dark = mk("#2d3436");
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 0), grey); body.position.y = 0.95; body.scale.set(0.9, 1, 1.3); g.add(body);
+  const breast = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 0), light); breast.position.set(0, 0.85, 0.3); g.add(breast);
+  for (let i = 0; i < 3; i++) bx(g, 0.4, 0.025, 0.02, null, 0, 0.75 + i * 0.1, 0.6, dark);
+  const head = new THREE.Group(); head.position.set(0, 1.45, 0.25); g.add(head);
+  const hm = new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 0), grey); head.add(hm);
+  bx(head, 0.1, 0.08, 0.3, null, 0, -0.02, 0.32, EM("#ffb300", 0.4)); const eye = EM("#ff3b3b", 1.3);
+  bx(head, 0.06, 0.06, 0.02, null, -0.1, 0.06, 0.2, eye); bx(head, 0.06, 0.06, 0.02, null, 0.1, 0.06, 0.2, eye);
+  const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(-0.38, 1.05, 0); wr.position.set(0.38, 1.05, 0); g.add(wl, wr);
+  [[wl, -1], [wr, 1]].forEach(([w, sgn]) => bx(w, 0.6, 0.06, 0.7, null, sgn * 0.3, 0, -0.05, dark));
+  bx(g, 0.3, 0.06, 0.6, null, 0, 0.9, -0.65, dark).rotation.x = -0.3;
+  [-0.12, 0.12].forEach(x => { bx(g, 0.04, 0.4, 0.04, null, x, 0.3, 0.05, M3("#ffb300")); bx(g, 0.14, 0.03, 0.16, null, x, 0.1, 0.1, M3("#ffb300")); });
+  const nest = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.14, 6, 12), M3("#8b5a2b")); nest.rotation.x = Math.PI / 2; nest.position.y = 0.08; g.add(nest);
+  const egg = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), EM("#38ff7a", 0.8)); egg.position.set(0.3, 0.2, 0.2); egg.scale.y = 1.3; g.add(egg);
+  g.userData = { mats, base: 1.1, cy: 0, title: 0.9, anim: (t, gg) => {
+    gg.position.y = 0; head.rotation.y = Math.sin(t * 2.5) * 0.5; head.position.y = 1.45 + Math.abs(Math.sin(t * 5)) * 0.04;
+    const fl = Math.sin(t * 9) * 0.5; wl.rotation.z = fl; wr.rotation.z = -fl;
+  } };
+  g.scale.setScalar(g.userData.base); return g;
+}
+function makeEgg() {
+  const g = new THREE.Group(), mats = [];
+  const mk = c => { const m = new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.6, emissive: "#ffffff", emissiveIntensity: 0 }); mats.push(m); return m; };
+  const shell = mk("#e8e2d0"), spot = mk("#7f8c8d");
+  const egg = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 1), shell); egg.position.y = 1.0; egg.scale.set(0.85, 1.15, 0.85); egg.castShadow = true; g.add(egg);
+  for (let i = 0; i < 7; i++) { const sp = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08 + (i % 3) * 0.03, 0), spot); const a = i * 0.9; sp.position.set(Math.cos(a) * 0.55, 0.7 + (i % 4) * 0.2, Math.sin(a) * 0.55); g.add(sp); }
+  const crack = EM("#38ff7a", 1.5);
+  [[-0.2, 1.3, 0.3], [0, 1.15, -0.2], [0.18, 1.3, 0.25], [0.35, 1.18, 0.2]].forEach(([x, z, r]) => bx(g, 0.22, 0.03, 0.02, null, x, z, 0.62, crack).rotation.z = r);
+  const peek = new THREE.Group(); peek.position.set(0, 1.62, 0.2); g.add(peek);
+  bx(peek, 0.1, 0.07, 0.22, null, 0, 0, 0.3, EM("#ffb300", 0.5)); bx(peek, 0.06, 0.06, 0.02, null, -0.1, 0.08, 0.22, EM("#ff3b3b", 1.3)); bx(peek, 0.06, 0.06, 0.02, null, 0.1, 0.08, 0.22, EM("#ff3b3b", 1.3));
+  const bits = new THREE.Group(); g.add(bits); const bm = EM("#38ff7a", 1);
+  for (let i = 0; i < 8; i++) { const b = new THREE.Mesh(boxGeo(0.08, 0.08, 0.08), bm); b.userData.a = i / 8 * Math.PI * 2; bits.add(b); }
+  g.userData = { mats, base: 1.05, cy: 0, title: 1.0, anim: (t, gg) => {
+    gg.position.y = 0; egg.rotation.z = Math.sin(t * 6) * (Math.floor(t) % 3 === 0 ? 0.12 : 0.02);
+    peek.position.y = 1.62 + Math.max(0, Math.sin(t * 1.5)) * 0.12;
+    bits.children.forEach(b => { const a = b.userData.a + t; b.position.set(Math.cos(a) * 1.0, 0.6 + Math.sin(t * 2 + b.userData.a) * 0.3, Math.sin(a) * 0.8); b.rotation.y = t * 3; });
+  } };
+  g.scale.setScalar(g.userData.base); return g;
+}
 function makeEnemy(model) {
   switch (model) {
+    case "phantom": return makePhantom();
+    case "deepfake": return makeDeepfake();
+    case "ice": return makeIce(false);
+    case "iceBoss": return makeIce(true);
+    case "hydra": return makeHydra(false);
+    case "hydraBoss": return makeHydra(true);
+    case "cuckoo": return makeCuckoo();
+    case "egg": return makeEgg();
     case "hood": return makeHood();
     case "voss": return makeVoss();
     case "cloud": return makeCloud(false);
@@ -615,7 +792,6 @@ function init3D() {
   alarmA = new THREE.PointLight("#ff2a2a", 0, 10, 1.2); alarmA.position.set(5.5, 2.2, 4.5);
   alarmB = new THREE.PointLight("#ff2a2a", 0, 10, 1.2); alarmB.position.set(28.5, 2.2, 4.5);
   scene.add(alarmA, alarmB);
-  buildWorld();
   player3 = makeChar(PLAYER_LOOK3); scene.add(player3);
   for (let i = 0; i < 4; i++) MARKS3.push(makeMarker());
   setCase3D();
@@ -623,6 +799,8 @@ function init3D() {
 }
 /* Figuren des gewählten Falls aufbauen */
 function setCase3D() {
+  if (WG) scene.remove(WG);
+  buildWorld();
   for (const o of NPC3D) { scene.remove(o.model); scene.remove(o.marker); }
   NPC3D = NPCS.map(n => { const m = makeChar(LOOK3[n.id] || LOOK3.kevin); scene.add(m); return { n, model: m, marker: makeMarker() }; });
   dawn = 0;
@@ -692,7 +870,7 @@ function renderBattle(t, dt) {
   if (bMoth) {
     animMoth(t);
     const u = bMoth.userData;
-    for (const m of u.mats) m.emissiveIntensity = B.flash && (B.flash >> 2) % 2 ? 0.9 : 0;
+    if (B.flash) for (const m of u.mats) m.emissiveIntensity = (B.flash >> 2) % 2 ? 0.9 : (u.glow || 0);
     if (B.hp <= 0) { bMoth.scale.multiplyScalar(0.94); bMoth.rotation.y += 0.25; }
     else bMoth.scale.setScalar(u.base);
   }
@@ -716,6 +894,7 @@ let CASE = null, NPCS = [];
 const CASE_LIST = () => Object.values(CASES).sort((a, b) => a.num - b.num);
 function selectCase(id) {
   CASE = CASES[id];
+  MAP = CASE.map || MAP1; MW = MAP[0].length; MH = MAP.length;
   NPCS = CASE.npcs.map(n => Object.assign({}, n));
   if (typeof setCase3D === "function" && renderer) setCase3D();
 }
@@ -1166,6 +1345,9 @@ function genericInteract(x, y) {
   if (ch === "B") return [S("Notfallhandbuch", CASE.handbook ? CASE.handbook(G.flags) : "Kapitel 1: Ruhe bewahren.")];
   if (ch === "S") return [S("", "Die Server summen gleichmäßig. Hier ist heute nichts zu tun.")];
   if (ch === "M") return [S("", "Dein Schreibtisch. Der Posteingang quillt über. Er kann warten.")];
+  if (ch === "F") return [S("", "Ein Netzwerkschrank. Kabel in allen Farben, die LEDs flackern im Takt der Pakete.")];
+  if (ch === "V") return [S("", CASE.videoWall ? CASE.videoWall(G.flags) : "Die Videowand zeigt Dashboards. Viele Kurven, wenig Antworten.")];
+  if (ch === "C") return [S("", "Ein Sofa. Verlockend. Aber nicht jetzt.")];
   if (ch === "P") return [S("", "Ein Ficus. Er hat schon drei Vorfälle überlebt. Er weiß Dinge.")];
   if (ch === "T") return [S("", room === "Küche" ? "Reste einer Geburtstagstorte. Von letzter Woche." : room === "Vorstand" ? "Ein Tisch aus Mahagoni. Teurer als dein Auto." : "Der Krisenstab-Tisch. Jemand hat „Lessons Learned?“ in den Staub geschrieben.")];
   if (ch === "D") return [S("", room === "SOC" ? "Sechs Monitore voller Alarme. Einer zeigt ein Katzenvideo." : room === "Forensik" ? "Write-Blocker, Festplatten, kalter Kaffee. Tobias' Reich." : room === "CISO" ? "Ein ordentlicher Schreibtisch. Verdächtig ordentlich." : "Ein Arbeitsplatz. Bildschirmschoner: „Think before you click“.")];
@@ -1333,20 +1515,20 @@ CASES.nachtfalke = {
 /* ================= FALL 2: DER MAULWURF (Insider) ================= */
 const NPCS2 = [
   { id: "lena", name: "Lena Brandt", role: "SOC-Lead", x: 4, y: 4, dir: 0 },
-  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 15, y: 4, dir: 0 },
-  { id: "dennis", name: "Dennis Falk", role: "DB-Admin (gekündigt)", x: 8, y: 6, dir: 1 },
-  { id: "voss", name: "Rainer Voss", role: "Externer (DataBridge GmbH)", x: 27, y: 2, dir: 0 },
-  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 25, y: 17, dir: 0 },
-  { id: "kaya", name: "Dr. Aylin Kaya", role: "Rechtsabteilung", x: 13, y: 18, dir: 0 },
-  { id: "brenner", name: "Claudia Brenner", role: "Personal", x: 31, y: 11, dir: 1 },
-  { id: "jana", name: "Jana Weiß", role: "Datenschutz", x: 26, y: 11, dir: 1 },
-  { id: "mertens", name: "Uwe Mertens", role: "Betriebsrat", x: 8, y: 18, dir: 0 },
-  { id: "kevin", name: "Kevin", role: "Praktikant", x: 6, y: 16, dir: 0 }
+  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 12, y: 4, dir: 0 },
+  { id: "dennis", name: "Dennis Falk", role: "DB-Admin (gekündigt)", x: 21, y: 4, dir: 0 },
+  { id: "voss", name: "Rainer Voss", role: "Externer (DataBridge GmbH)", x: 31, y: 4, dir: 0 },
+  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 34, y: 14, dir: 0 },
+  { id: "kaya", name: "Dr. Aylin Kaya", role: "Rechtsabteilung", x: 11, y: 14, dir: 0 },
+  { id: "brenner", name: "Claudia Brenner", role: "Personal", x: 16, y: 14, dir: 0 },
+  { id: "jana", name: "Jana Weiß", role: "Datenschutz", x: 21, y: 14, dir: 0 },
+  { id: "mertens", name: "Uwe Mertens", role: "Betriebsrat", x: 24, y: 14, dir: 0 },
+  { id: "kevin", name: "Kevin", role: "Praktikant", x: 5, y: 13, dir: 0 }
 ];
 function comms2() { const f = G.flags; return !!(f.ds && f.vor && f.call); }
 function npcPos2(n) {
   const f = G.flags;
-  if (n.id === "voss") { if (f.b2) return { x: 0, y: 0 }; if (f.hr) return { x: 18, y: 18 }; }
+  if (n.id === "voss") { if (f.b2) return { x: 0, y: 0 }; if (f.hr) return { x: 29, y: 15 }; }
   return { x: n.x, y: n.y };
 }
 function npcNew2(n) {
@@ -1370,18 +1552,18 @@ function objectives2() {
   if (!f.m1) o.push("Geh ins SOC (oben links) zu Lena. Diskret.");
   else if (!f.b1) {
     if (!f.esc) o.push("Informiere CISO Dr. Vogel (CISO-Büro, unten rechts).");
-    if (!f.foren) o.push("Tobias soll Beweise sichern (Forensik, oben Mitte).");
-    if (f.esc && !f.recht) o.push("Rechtliche Leitplanken klären: Dr. Kaya (Krisenstab, unten Mitte).");
-    if (f.recht && !f.br) o.push("Betriebsrat einbinden: Herr Mertens (Küche, unten links).");
+    if (!f.foren) o.push("Tobias soll Beweise sichern (Forensik, oben, zweiter Raum).");
+    if (f.esc && !f.recht) o.push("Rechtliche Leitplanken klären: Dr. Kaya (Rechtsabteilung, unten, zweiter Raum).");
+    if (f.recht && !f.br) o.push("Betriebsrat einbinden: Herr Mertens (Betriebsrat, unten Mitte).");
     if (f.recht && f.br) o.push("Datenabfluss stoppen: DLP-Konsole im SOC (oben links)." + (G.time < 19 * 60 ? " Vor 19:00 Uhr!" : ""));
   } else if (!f.twist) o.push("Tobias hat etwas Merkwürdiges gefunden (Forensik).");
   else if (!f.hr || !comms2()) {
-    if (!f.hr) o.push("Gespräch mit Voss vorbereiten: Frau Brenner, Personal (Flur, rechts).");
+    if (!f.hr) o.push("Gespräch mit Voss vorbereiten: Frau Brenner (Personal, unten, dritter Raum).");
     if (!f.dennis) o.push("Sprich mit Dennis (SOC). Er hat ein Recht auf Klarheit.");
-    if (!f.ds) o.push("Datenschutz: Jana (Flur, rechts).");
+    if (!f.ds) o.push("Datenschutz: Jana (unten Mitte, neben dem Betriebsrat).");
     if (!f.vor) o.push("Dr. Vogel braucht Entscheidungen für den Vorstand (CISO-Büro).");
     if (!f.call) o.push("Das Telefon an deinem Schreibtisch klingelt.");
-  } else if (!f.b2) o.push("Anhörung: Rainer Voss wartet im Krisenstab (unten Mitte).");
+  } else if (!f.b2) o.push("Anhörung: Rainer Voss wartet im Besprechungsraum (unten, neben dem CISO-Büro).");
   else if (!f.review) o.push("Nachbereitung mit Dr. Vogel (CISO-Büro).");
   if (f.m1 && !f.kevin) o.push("(Optional) In der Küche will dir jemand etwas erzählen.");
   return o;
@@ -1396,7 +1578,7 @@ function talk2(id) {
       S("Lena", "Das DLP-System schlägt seit drei Nächten an: große Abfragen auf die Kundendatenbank KDB-PROD. Kontodaten von 40 Banken."),
       S("Lena", "Gestern um 19:12 Uhr gingen 2,3 GB über einen privaten Cloud-Speicher raus. Vom Jumphost JH-02 im Serverraum. Angemeldet war: adm-dfalk."),
       S("Lena", "Das ist Dennis Falk, unser DB-Admin. Er hat vor zwei Wochen gekündigt. Morgen ist sein letzter Tag. Er geht zu einem Wettbewerber."),
-      S("Lena", "Die Exporte liefen jeden Abend gegen 19:00 Uhr. Wenn wir bis dahin nichts tun, geht heute die nächste Ladung raus."),
+      S("Lena", "Die Exporte liefen jeden Abend gegen 19:00 Uhr. Die Server stehen oben rechts, der Jumphost auch. Wenn wir bis dahin nichts tun, geht heute die nächste Ladung raus."),
       CH("Wie gehst du vor?", [
         { l: "Vertraulich: kleiner Need-to-know-Kreis, Fallakte mit eingeschränktem Zugriff, Logs sichern, gegenüber Dennis nichts andeuten.", fx: { beweise: 1 }, time: 10,
           praise: "Insider-Verdacht vertraulich und nach Need-to-know behandelt.",
@@ -1432,7 +1614,7 @@ function talk2(id) {
           then: [S("Dr. Vogel", "Jetzt flüstert der ganze Flur. Und der Täter weiß, dass wir suchen.")] }
       ]),
       SET("esc"),
-      S("Dr. Vogel", "Dr. Kaya aus der Rechtsabteilung sitzt im Krisenstab-Raum, unten Mitte. Bevor irgendwer irgendwen überwacht, sprechen Sie mit ihr.")
+      S("Dr. Vogel", "Dr. Kaya sitzt in der Rechtsabteilung, unten, zweiter Raum von links. Bevor irgendwer irgendwen überwacht, sprechen Sie mit ihr.")
     ];
     if (f.twist && !f.vor) return [
       S("Dr. Vogel", "Ich habe den Vorstand am Telefon. Er will drei Dinge wissen: Melden wir das? Zeigen wir an? Was sagen wir den Banken?"),
@@ -1527,7 +1709,7 @@ function talk2(id) {
           then: [S("Dr. Kaya", "So heikel nun auch nicht. Gezielte, verhältnismäßige Maßnahmen gehen. Wir machen das ordentlich.")] }
       ]),
       SET("recht"),
-      S("Dr. Kaya", "Eine Sache noch: Technische Kontrollmaßnahmen sind mitbestimmungspflichtig. Herr Mertens vom Betriebsrat sitzt in der Küche.")
+      S("Dr. Kaya", "Eine Sache noch: Technische Kontrollmaßnahmen sind mitbestimmungspflichtig. Herr Mertens vom Betriebsrat sitzt unten Mitte, gleich neben Jana vom Datenschutz.")
     ];
     if (f.b2) return [S("Dr. Kaya", "Die Anzeige ist raus. Und dank sauberer Beweiskette wird sie halten.")];
     return [S("Dr. Kaya", "Dokumentieren, dokumentieren, dokumentieren. Was nicht dokumentiert ist, ist nicht passiert.")];
@@ -1589,7 +1771,7 @@ function talk2(id) {
 
   case "voss":
     if (f.hr && comms2() && !f.b2) return [
-      S("Voss", "Sie wollten mich sprechen? Im Krisenstab-Raum? Mit der Rechtsabteilung? Ich habe nicht viel Zeit."),
+      S("Voss", "Sie wollten mich sprechen? Im Besprechungsraum? Mit der Rechtsabteilung? Ich habe nicht viel Zeit."),
       S("Dr. Kaya", "Herr Voss, Ihre Zugänge sind seit einer Minute deaktiviert, Ihr Laptop ist sichergestellt. Wir möchten Ihnen Gelegenheit geben, sich zu äußern."),
       BAT("b2"),
       SET("b2"),
@@ -1619,7 +1801,7 @@ function talk2(id) {
       CH("Wie bereitest du das Gespräch mit Voss vor?", [
         { l: "Koordiniert: Recht informiert DataBridge. Zugänge und Ausweis werden genau dann deaktiviert, wenn das Gespräch beginnt. Zeugen sind dabei, der Laptop wird gesichert.", fx: { beweise: 1 }, time: 20, set: "secured",
           praise: "Gespräch mit dem Verdächtigen koordiniert: Zugriffsentzug, Gerätesicherung und Zeugen zur selben Minute.",
-          then: [S("Frau Brenner", "Gut. Ich bitte ihn in den Krisenstab-Raum, sobald Sie so weit sind.")] },
+          then: [S("Frau Brenner", "Gut. Ich bitte ihn in den Besprechungsraum, sobald Sie so weit sind.")] },
         { l: "Ich rufe Voss jetzt einfach an und frage, ob er etwas zu sagen hat.", fx: { beweise: -2 }, time: 5, set: "vossWarned",
           lesson: "Ein unvorbereiteter Anruf warnt den Verdächtigen. Er hat Zeit, Geräte zu löschen und sich abzusprechen.",
           then: [S("Frau Brenner", "Er sagt, er kommt gleich. Und klingt plötzlich sehr nervös. Wir sichern jetzt wenigstens den Ausweis.")] },
@@ -1630,7 +1812,7 @@ function talk2(id) {
       SET("hr"),
       ...(comms2() ? [] : [S("Frau Brenner", "Bevor wir ihn holen, sollten Datenschutz, Vorstand und Kunden geklärt sein. Danach gibt es kein Zurück.")])
     ];
-    return [S("Frau Brenner", comms2() ? "Voss sitzt im Krisenstab-Raum. Wir sind bereit." : "Klären Sie erst Datenschutz, Vorstand und das Telefonat. Dann holen wir Voss.")];
+    return [S("Frau Brenner", comms2() ? "Voss sitzt im Besprechungsraum. Wir sind bereit." : "Klären Sie erst Datenschutz, Vorstand und das Telefonat. Dann holen wir Voss.")];
 
   case "jana":
     if (!f.b1) return [S("Jana", "Ich prüfe Auftragsverarbeitungsverträge. 40 Stück. Alle mit Anlage 3.")];
@@ -1679,8 +1861,8 @@ function interact2(x, y) {
   if (ch === "D" && room === "SOC") {
     if (!f.m1) return [S("", "Die DLP-Konsole. Grün, grün, grün ... und ein gelber Eintrag, den du noch nicht kennst.")];
     if (f.b1) return [S("", "Die DLP-Konsole zeigt: keine Uploads mehr. Der Abfluss ist gestoppt.")];
-    if (!f.recht) return [S("Lena", "Bevor wir Sitzungen überwachen oder Konten anfassen: Was sagt die Rechtsabteilung? Dr. Kaya sitzt im Krisenstab-Raum.")];
-    if (!f.br) return [S("Lena", "Die Rechtsabteilung ist an Bord. Aber ohne den Betriebsrat dürfen wir laut Betriebsvereinbarung keine Kontrollmaßnahme starten. Herr Mertens ist in der Küche.")];
+    if (!f.recht) return [S("Lena", "Bevor wir Sitzungen überwachen oder Konten anfassen: Was sagt die Rechtsabteilung? Dr. Kaya sitzt in der Rechtsabteilung, unten.")];
+    if (!f.br) return [S("Lena", "Die Rechtsabteilung ist an Bord. Aber ohne den Betriebsrat dürfen wir laut Betriebsvereinbarung keine Kontrollmaßnahme starten. Herr Mertens sitzt unten Mitte.")];
     const pre = f.foren ? [] : [CH("Tobias hat noch keine Beweise gesichert. Trotzdem loslegen?", [
       { l: "Ja. Der nächste Export kommt bald.", fx: { beweise: -1 }, lesson: "Beweise sichern, bevor man eingreift: Jede Maßnahme verändert die Spurenlage." },
       { l: "Nein, erst zu Tobias in die Forensik.", then: [S("", "Du gehst zurück zur Forensik.")], set: "_abort" }
@@ -1795,7 +1977,38 @@ const BATTLES2 = {
 CASES.maulwurf = {
   id: "maulwurf", num: 2, title: "DER MAULWURF", sub: "Insider-Datenabfluss mit falscher Fährte", diff: 3,
   desc: "Do, 16:20 Uhr. Jemand zieht nachts Kontodaten ab. Alle Spuren führen zu einem Kollegen. Zu einfach? Recht, Betriebsrat, Datenschutz.",
-  saveKey: "csirt_case_maulwurf_v1", start: { time: 16 * 60 + 20, x: 14, y: 11, dir: 1, days: ["Do", "Fr", "Sa", "So"] },
+  saveKey: "csirt_case_maulwurf_v2", start: { time: 16 * 60 + 20, x: 18, y: 9, dir: 1, days: ["Do", "Fr", "Sa", "So"] },
+  map: [
+    "######################################",
+    "#=W====V=#==W===#===W===W==#SSSSSSSSS#",
+    "#........#......#..........#,,,,,,,,,#",
+    "#.DD..DD.#.DD..B#.DD.DD.DD.#,SS,,,SS,#",
+    "#........#......#..........#,,,,,,,,,#",
+    "#.DD..DD.#....DD#.DD.DD.DD.#,SS,F,SS,#",
+    "#P......P#P.....#P........P#,,,,,,,,,#",
+    "#####d######d#########d#########d#####",
+    "#....................................#",
+    "#.....MM.............................#",
+    "#....................................#",
+    "###d######d#####d#####d######d####d###",
+    "#,K,,,,#.....#.....#......#.....#____#",
+    "#,,,,,,#.DD..#.DD..#.DD.DD#.TTT.#_DD_#",
+    "#,,TT,,#.....#.....#......#.TTT.#____#",
+    "#,,TT,,#..B..#.....#......#.....#____#",
+    "#,,,,,C#P...P#P...P#P....P#P...P#P__P#",
+    "######################################"
+  ],
+  rooms: [
+    { n: "SOC", x0: 1, y0: 1, x1: 8, y1: 6 }, { n: "Forensik", x0: 10, y0: 1, x1: 15, y1: 6 },
+    { n: "Großraumbüro", x0: 17, y0: 1, x1: 26, y1: 6 }, { n: "Serverraum", x0: 28, y0: 1, x1: 36, y1: 6 },
+    { n: "Küche", x0: 1, y0: 12, x1: 6, y1: 16 }, { n: "Rechtsabteilung", x0: 8, y0: 12, x1: 12, y1: 16 },
+    { n: "Personal", x0: 14, y0: 12, x1: 18, y1: 16 }, { n: "Betriebsrat", x0: 20, y0: 12, x1: 25, y1: 16 },
+    { n: "Besprechung", x0: 27, y0: 12, x1: 31, y1: 16 }, { n: "CISO", x0: 33, y0: 12, x1: 36, y1: 16 }
+  ],
+  floors: { "Großraumbüro": ["#8f9fb5", "#8696ac"], Rechtsabteilung: ["#6e5a4a", "#655242"], Personal: ["#b7a27c", "#ad9873"],
+    Betriebsrat: ["#7c9a6e", "#739165"], Besprechung: ["#4a5f7a", "#435771"] },
+  alarmPos: [[4.5, 3.5], [32, 3.5]],
+  videoWall: f => f.b1 ? "DLP-Dashboard: 0 Uploads in der letzten Stunde. Grün. Endlich." : "DLP-Dashboard: Ein gelber Balken wächst jeden Abend gegen 19 Uhr.",
   fastLimit: 24 * 60 + 60, fastText: "Wer vor Freitag, 01:00 Uhr fertig wird, bekommt einen Tempo-Bonus.",
   npcs: NPCS2, npcPos: npcPos2, npcNew: npcNew2, talk: talk2, interact: interact2, objectives: objectives2, battles: BATTLES2,
   titleModel: "hood",
@@ -1812,24 +2025,24 @@ CASES.maulwurf = {
     S("Handy", "Eine Nachricht von Lena: „Kannst du ins SOC kommen? Bitte allein. Und sag niemandem etwas.“"),
     HINT()
   ],
-  marks: f => { const m = []; if (f.recht && f.br && !f.b1) m.push([6, 5, 1.6]); if (f.b1 && !f.call) m.push([13, 10, 1.5]); return m; },
+  marks: f => { const m = []; if (f.recht && f.br && !f.b1) m.push([6, 3, 1.6]); if (f.b1 && !f.call) m.push([6, 9, 1.5]); return m; },
   alarm: f => ({ active: f.m1 && !f.b2, critical: f.recht && f.br && !f.b1, color: (f.recht && f.br && !f.b1) ? undefined : "#7d5cff" }),
   dawn: f => f.review ? 1 : f.b1 ? 0 : 0.35
 };
 
 /* ================= FALL 3: STURMWOLKE (Cloud / Identity) ================= */
 const NPCS3 = [
-  { id: "lena", name: "Lena Brandt", role: "SOC-Lead", x: 4, y: 4, dir: 0 },
-  { id: "sven", name: "Sven Ohlsen", role: "Cloud-Admin", x: 8, y: 6, dir: 1 },
-  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 15, y: 4, dir: 0 },
-  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 25, y: 17, dir: 0 },
-  { id: "holl", name: "Frank Hollerbach", role: "Vorstand", x: 32, y: 18, dir: 0 },
-  { id: "sabine", name: "Sabine Roth", role: "Pressestelle", x: 26, y: 11, dir: 1 },
-  { id: "jana", name: "Jana Weiß", role: "Datenschutz", x: 31, y: 11, dir: 1 },
-  { id: "kevin", name: "Kevin", role: "Praktikant", x: 6, y: 16, dir: 0 }
+  { id: "lena", name: "Lena Brandt", role: "SOC-Lead", x: 5, y: 4, dir: 0 },
+  { id: "sven", name: "Sven Ohlsen", role: "Cloud-Admin", x: 16, y: 4, dir: 0 },
+  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 27, y: 4, dir: 0 },
+  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 20, y: 16, dir: 1 },
+  { id: "holl", name: "Frank Hollerbach", role: "Vorstand", x: 29, y: 16, dir: 1 },
+  { id: "sabine", name: "Sabine Roth", role: "Pressestelle", x: 3, y: 16, dir: 1 },
+  { id: "jana", name: "Jana Weiß", role: "Datenschutz", x: 6, y: 16, dir: 1 },
+  { id: "kevin", name: "Kevin", role: "Praktikant", x: 13, y: 16, dir: 1 }
 ];
 function comms3() { const f = G.flags; return !!(f.call && f.vor && f.ds && f.press); }
-function npcPos3(n) { if (n.id === "vogel" && G.flags.b2) return { x: 16, y: 18 }; return { x: n.x, y: n.y }; }
+function npcPos3(n) { return { x: n.x, y: n.y }; }
 function npcNew3(n) {
   const f = G.flags;
   switch (n.id) {
@@ -1848,16 +2061,16 @@ function objectives3() {
   const f = G.flags, o = [];
   if (!f.c1) o.push("Ins SOC (oben links) zu Lena.");
   else if (!f.b1) {
-    if (!f.esc) o.push("Eskaliere an CISO Dr. Vogel (CISO-Büro, unten rechts).");
-    if (!f.logs) o.push("Tobias soll die Cloud-Logs sichern (Forensik, oben Mitte).");
-    if (!f.sven) o.push("Sprich mit Sven, dem betroffenen Admin (SOC).");
+    if (!f.esc) o.push("Eskaliere an CISO Dr. Vogel (Krisenstab, unten Mitte).");
+    if (!f.logs) o.push("Tobias soll die Cloud-Logs sichern (Forensik, oben rechts).");
+    if (!f.sven) o.push("Sprich mit Sven, dem betroffenen Admin (Cloud-Team, oben Mitte).");
     o.push("Sperr den Angreifer aus: Entra-Konsole im SOC (oben links).");
   } else if (!comms3()) {
     if (!f.call) o.push("Das Telefon an deinem Schreibtisch klingelt.");
-    if (!f.vor) o.push("Vorstand Hollerbach briefen (unten rechts). Termin 10:00 Uhr!");
-    if (!f.ds) o.push("Datenschutz: Jana (Flur, rechts).");
-    if (!f.press) o.push("Pressestelle: Sabine (Flur, rechts).");
-  } else if (!f.persist) o.push("Tobias hat die Audit-Logs ausgewertet (Forensik).");
+    if (!f.vor) o.push("Vorstand Hollerbach briefen (Vorstand, unten rechts). Termin 10:00 Uhr!");
+    if (!f.ds) o.push("Datenschutz: Jana (Presse & Datenschutz, unten links).");
+    if (!f.press) o.push("Pressestelle: Sabine (Presse & Datenschutz, unten links).");
+  } else if (!f.persist) o.push("Tobias hat die Audit-Logs ausgewertet (Forensik, oben rechts).");
   else if (!f.b2) o.push("Wirf STURMWOLKE endgültig raus: Entra-Konsole im SOC.");
   else if (!f.review) o.push("Nachbereitung mit Dr. Vogel (Krisenstab, unten Mitte).");
   if (f.c1 && !f.kevin) o.push("(Optional) Kevin ist in der Küche und wirkt aufgeregt.");
@@ -1883,7 +2096,7 @@ function talk3(id) {
           lesson: "Überreaktion: Den ganzen Tenant zu sperren legt Mail, Teams und Kundenportale lahm. Gezielt eindämmen statt alles abschalten.",
           then: [S("Lena", "Alle Konten gesperrt. Das Kundenportal der Banken auch. Und Sonntag hin oder her: Das Telefon fängt an zu klingeln.")] }
       ]),
-      S("Lena", "Er hatte drei Stunden lang Global Admin. Wir müssen wissen, was er damit gemacht hat. Tobias soll die Logs sichern, die Forensik ist oben Mitte."),
+      S("Lena", "Er hatte drei Stunden lang Global Admin. Wir müssen wissen, was er damit gemacht hat. Tobias soll die Logs sichern, die Forensik ist oben rechts."),
       S("Lena", "Und Dr. Vogel muss Bescheid wissen. Wenn du so weit bist, sperren wir ihn an der Entra-Konsole hier im SOC endgültig aus."),
       SET("c1")
     ];
@@ -1959,7 +2172,7 @@ function talk3(id) {
       CH("Wie eskalierst du?", [
         { l: "Krisenstab einberufen und den Vorfall jetzt bewerten. Global Admin kompromittiert, Postfächer betroffen. Die Uhr für die Meldungen läuft ab Kenntnis.", fx: { vertrauen: 2 }, time: 15,
           praise: "Früh eskaliert und die Bewertung für die Meldepflichten sofort angestoßen.",
-          then: [S("Dr. Vogel", "Gut. Ich trommle den Krisenstab zusammen. Herr Hollerbach will um 10:00 Uhr ein Briefing.")] },
+          then: [S("Dr. Vogel", "Gut. Ich bleibe hier im Krisenstab-Raum. Herr Hollerbach will um 10:00 Uhr ein Briefing.")] },
         { l: "Erst ein Ticket beim Microsoft-Support aufmachen und abwarten, was die sagen.", fx: { vertrauen: -1 }, time: 60,
           lesson: "Der Hersteller-Support ersetzt kein eigenes Incident Management. Eskalation und Bewertung sind Aufgabe des eigenen Hauses.",
           then: [S("Dr. Vogel", "Eine Stunde in der Warteschleife. Und jetzt? Wir führen selbst.")] },
@@ -1968,7 +2181,7 @@ function talk3(id) {
           then: [S("Dr. Vogel", "Nur die Cloud? Da liegen unsere Mails, unsere Verträge, unsere Kundenkorrespondenz. Natürlich ist das groß.")] }
       ]),
       SET("esc"),
-      S("Dr. Vogel", "Herr Hollerbach erwartet Sie um 10:00 Uhr. Sein Büro ist nebenan.")
+      S("Dr. Vogel", "Herr Hollerbach erwartet Sie um 10:00 Uhr in seinem Büro, unten rechts.")
     ];
     if (f.b2 && !f.review) return [
       S("Dr. Vogel", "Der Angreifer ist draußen, alle Hintertüren sind zu. Was ändern wir, damit das nie wieder passiert?"),
@@ -2160,8 +2373,8 @@ const BATTLES3 = {
     enemy: B => [
       { w: (B.used.rev || G.flags.revoked) ? 0 : 3, text: "STURMWOLKE nutzt ein gestohlenes Refresh-Token!", heal: 15 },
       { w: B.used.mfa ? 0 : 2, text: "STURMWOLKE bestätigt sich mit ihrer eigenen MFA-Methode!", heal: 10 },
-      { w: B.used.ca ? 1 : 3, text: "STURMWOLKE liest die Postfächer des Vorstands!", fx: { schaden: 1 }, set: "mail" },
-      { w: B.used.ga ? 0 : 2, text: "STURMWOLKE legt ein neues Admin-Konto an!", fx: { schaden: 1 } },
+      { w: B.used.ca ? 0 : 2, text: "STURMWOLKE liest die Postfächer des Vorstands!", fx: { schaden: 1 }, set: "mail" },
+      { w: B.used.ga ? 0 : 1, text: "STURMWOLKE legt ein neues Admin-Konto an!", fx: { schaden: 1 } },
       { w: 1, text: G.flags.logs ? "STURMWOLKE versucht, das Audit-Log abzuschalten. Zu spät, Tobias hat alles gesichert." : "STURMWOLKE schaltet die Überwachung ab!", fx: G.flags.logs ? undefined : { beweise: -1 } }
     ],
     win: ["Die STURMWOLKE ist aus Svens Konto ausgesperrt!", "Dein Team erhält 400 Erfahrungspunkte. Und eine dunkle Ahnung."]
@@ -2192,9 +2405,9 @@ const BATTLES3 = {
     ],
     enemy: B => [
       { w: B.used.fed ? 0 : 3, text: "APT STURMWOLKE fälscht über die fremde Föderation ein Token!", heal: 15 },
-      { w: B.used.app ? 0 : 3, text: "APT STURMWOLKE liest über die OAuth-App alle Postfächer!", fx: { schaden: 1 } },
+      { w: B.used.app ? 0 : 2, text: "APT STURMWOLKE liest über die OAuth-App alle Postfächer!", fx: { schaden: 1 } },
       { w: B.used.sp ? 0 : 2, text: "APT STURMWOLKE meldet sich mit dem gestohlenen Secret an!", heal: 10 },
-      { w: B.used.fwd ? 0 : 2, text: "APT STURMWOLKE leitet Vorstandsmails nach außen!", fx: { schaden: 1 } },
+      { w: B.used.fwd ? 0 : 1, text: "APT STURMWOLKE leitet Vorstandsmails nach außen!", fx: { schaden: 1 } },
       { w: (G.flags.piecemeal && !B.used.newapp) ? 2 : 0, text: "APT STURMWOLKE hat es bemerkt und legt eine neue Hintertür an!", heal: 20, once: "newapp" },
       { w: 1, text: "APT STURMWOLKE versteckt sich im Rauschen ..." }
     ],
@@ -2205,7 +2418,38 @@ const BATTLES3 = {
 CASES.sturmwolke = {
   id: "sturmwolke", num: 3, title: "STURMWOLKE", sub: "Cloud-Angriff auf Identitäten und Postfächer", diff: 3,
   desc: "So, 06:05 Uhr. MFA-Fatigue, ein gekaperter Global Admin und Hintertüren in der Cloud. Wer nur das Passwort ändert, verliert.",
-  saveKey: "csirt_case_sturmwolke_v1", start: { time: 6 * 60 + 5, x: 14, y: 11, dir: 1, days: ["So", "Mo", "Di", "Mi"] },
+  saveKey: "csirt_case_sturmwolke_v2", start: { time: 6 * 60 + 5, x: 20, y: 9, dir: 1, days: ["So", "Mo", "Di", "Mi"] },
+  map: [
+    "##################################",
+    "#==VVVV==W=#===W==W===#===W======#",
+    "#..........#..........#..........#",
+    "#.DD.DD.DD.#.DD..DD...#.DD...B...#",
+    "#..........#..........#..........#",
+    "#P........P#P.DD..DD.P#P..FF....P#",
+    "#####d##########d############d####",
+    "#................................#",
+    "#...C..P.......MM......P..C......#",
+    "#................................#",
+    "#...C.....................C......#",
+    "#................................#",
+    "####d#######d#######d########d####",
+    "#........#,K,,,#.........#_______#",
+    "#.DD..DD.#,,,,,#..TTTTT..#__TTT__#",
+    "#........#,TT,,#..TTTTT..#__TTT__#",
+    "#........#,TT,,#.........#_______#",
+    "#P......P#,,,,C#P.......P#P_____P#",
+    "##################################"
+  ],
+  rooms: [
+    { n: "SOC", x0: 1, y0: 1, x1: 10, y1: 5 }, { n: "Cloud-Team", x0: 12, y0: 1, x1: 21, y1: 5 }, { n: "Forensik", x0: 23, y0: 1, x1: 32, y1: 5 },
+    { n: "Presse", x0: 1, y0: 13, x1: 8, y1: 17 }, { n: "Küche", x0: 10, y0: 13, x1: 14, y1: 17 },
+    { n: "Krisenstab", x0: 16, y0: 13, x1: 24, y1: 17 }, { n: "Vorstand", x0: 26, y0: 13, x1: 32, y1: 17 }
+  ],
+  defaultRoom: "Atrium",
+  floors: { "Cloud-Team": ["#5a7fa8", "#52779f"], Presse: ["#b98fa8", "#af859e"], Atrium: ["#d9d4c7", "#cfc9bb"] },
+  wallColor: "#dfe6ee",
+  alarmPos: [[5, 3.5], [16, 3.5]],
+  videoWall: f => f.b2 ? "Entra-Dashboard: Riskante Anmeldungen 0. Ein schöner Anblick." : "Entra-Dashboard: Riskante Anmeldungen. Ein Konto leuchtet rot: adm-sohlsen.",
   fastLimit: 15 * 60, fastText: "Wer vor 15:00 Uhr fertig wird, bekommt einen Tempo-Bonus.",
   npcs: NPCS3, npcPos: npcPos3, npcNew: npcNew3, talk: talk3, interact: interact3, objectives: objectives3, battles: BATTLES3,
   titleModel: "cloud",
@@ -2217,15 +2461,1658 @@ CASES.sturmwolke = {
   intro: n => [
     S("", "Sonntag, 06:05 Uhr. Dein Handy vibriert auf dem Nachttisch."),
     S("Lena", "Sorry für den Sonntag, " + n + ". Sven hat heute Nacht 41 MFA-Anfragen bekommen. Eine hat er bestätigt. Sein Konto ist Global Admin."),
-    S("", "Zwanzig Minuten später stehst du im Flur der FinOps Rechenzentrum AG. Draußen ziehen dunkle Wolken auf."),
+    S("", "Zwanzig Minuten später stehst du im Atrium des FinOps-Cloud-Campus. Draußen ziehen dunkle Wolken auf."),
     DIFF(),
     { t: "sfx", n: "alarm" },
-    S("Lena", "Ich bin im SOC, oben links. Beeil dich."),
+    S("Lena", "Ich bin im SOC, oben links. Sven sitzt nebenan im Cloud-Team. Beeil dich."),
     HINT()
   ],
-  marks: f => { const m = []; if ((f.c1 && !f.b1) || (f.persist && !f.b2)) m.push([6, 5, 1.6]); if (f.b1 && !f.call) m.push([13, 10, 1.5]); return m; },
+  marks: f => { const m = []; if ((f.c1 && !f.b1) || (f.persist && !f.b2)) m.push([5, 3, 1.6]); if (f.b1 && !f.call) m.push([15, 8, 1.5]); return m; },
   alarm: f => ({ active: f.c1 && !f.b2, critical: f.c1 && !f.b1, color: (f.c1 && !f.b1) ? undefined : "#3aa0ff" }),
   dawn: f => f.review ? 1 : f.b2 ? 0.7 : 0.25
+};
+
+/* ================= FALL 4: PHANTOM (CEO-Fraud / Business E-Mail Compromise) ================= */
+const NPCS4 = [
+  { id: "martina", name: "Martina Keller", role: "Leitung Zahlungsverkehr", x: 5, y: 4, dir: 0 },
+  { id: "hahn", name: "Oliver Hahn", role: "Treasury", x: 14, y: 4, dir: 0 },
+  { id: "lena", name: "Lena Brandt", role: "SOC-Lead", x: 23, y: 4, dir: 0 },
+  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 31, y: 4, dir: 0 },
+  { id: "kaya", name: "Dr. Aylin Kaya", role: "Rechtsabteilung", x: 11, y: 14, dir: 0 },
+  { id: "weber", name: "Dr. Claudia Weber", role: "Finanzvorständin (CFO)", x: 22, y: 14, dir: 0 },
+  { id: "holl", name: "Frank Hollerbach", role: "Vorstandssprecher", x: 29, y: 15, dir: 0 },
+  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 32, y: 15, dir: 0 },
+  { id: "kevin", name: "Kevin", role: "Praktikant", x: 5, y: 13, dir: 0 }
+];
+function comms4() { const f = G.flags; return !!(f.twist && f.recht && f.vor && f.m2); }
+function npcPos4(n) { if (n.id === "weber" && !G.flags.b2) return { x: 0, y: 0 }; return { x: n.x, y: n.y }; }
+function npcNew4(n) {
+  const f = G.flags;
+  switch (n.id) {
+    case "martina": return !f.p1 || (f.twist && !f.m2);
+    case "hahn": return f.p1 && !f.bank;
+    case "lena": return f.p1 && !f.hdr;
+    case "vogel": return (f.p1 && !f.esc) || (f.b2 && !f.review);
+    case "tobias": return f.b1 && !f.twist;
+    case "kaya": return f.b1 && !f.recht;
+    case "holl": return f.b1 && !f.vor;
+    case "weber": return f.b2 && !f.weber;
+    case "kevin": return f.p1 && !f.kevin;
+  }
+  return false;
+}
+function objectives4() {
+  const f = G.flags, o = [];
+  if (!f.p1) o.push("Martina Keller hat angerufen: Zahlungsverkehr (oben links).");
+  else if (!f.b1) {
+    if (!f.bank) o.push("Rückruf einleiten: Oliver Hahn, Treasury (oben, zweiter Raum).");
+    if (!f.esc) o.push("Eskaliere an CISO Dr. Vogel (Vorstandsetage, unten rechts).");
+    if (!f.hdr) o.push("Lena soll die Mail analysieren (SOC, oben rechts der Mitte).");
+    if (f.bank && f.esc) o.push("Rückholaktion starten: Telefon zur Hausbank am Treasury-Schreibtisch." + (G.time < 17 * 60 ? " Vor 17:00 Uhr!" : ""));
+  } else if (!comms4()) {
+    if (!f.twist) o.push("Tobias hat das Postfach der CFO untersucht (Forensik, oben rechts).");
+    if (!f.recht) o.push("Rechtliches und Versicherung: Dr. Kaya (Rechtsabteilung, unten links).");
+    if (!f.vor) o.push("Vorstand Hollerbach informieren (Vorstand, unten rechts).");
+    if (f.twist && !f.m2) o.push("Sieh nach Martina. Sie ist völlig fertig (Zahlungsverkehr).");
+  } else if (!f.b2) o.push("Das Telefon an deinem Schreibtisch klingelt. Ein Anruf für Martina.");
+  else if (!f.review) o.push("Nachbereitung mit Dr. Vogel (Vorstand, unten rechts).");
+  if (f.p1 && !f.kevin) o.push("(Optional) Kevin will dir in der Küche etwas zeigen.");
+  return o;
+}
+
+function talk4(id) {
+  const f = G.flags, N = G.name;
+  switch (id) {
+  case "martina":
+    if (!f.p1) return [
+      S("Martina", "Gut, dass Sie da sind. Ich glaube, ich habe einen riesigen Fehler gemacht."),
+      S("Martina", "Um 14:31 Uhr kam eine Mail von Dr. Weber: „Streng vertraulich. Übernahme Projekt Nordlicht. 4,8 Mio. Euro heute noch an das Treuhandkonto der Kanzlei. Ich sitze im Flieger, bitte keine Rückfragen.“"),
+      S("Martina", "Sie wusste von Nordlicht. Das kennen nur zwölf Leute. Ich habe um 14:55 Uhr überwiesen. Mein Stellvertreter hat freigegeben. Auf ein Konto in Litauen."),
+      S("Martina", "Gerade kam eine zweite Mail: „Danke. Morgen folgt die zweite Tranche über 2,1 Mio.“ Da ist mir aufgefallen: Die Adresse endet auf finops-ag.com. Wir sind finops.de."),
+      CH("Was tust du als Erstes?", [
+        { l: "Sofort Rückruf über die Hausbank einleiten, Treasury anrufen. Mails nicht löschen, nicht antworten. Und danke, dass Sie das sofort melden.", fx: { team: 1 }, time: 5,
+          praise: "Bei Zahlungsbetrug sofort den Rückruf angestoßen und die Meldende bestärkt.",
+          then: [S("Martina", "Herr Hahn vom Treasury sitzt gleich nebenan. Ich ... danke.")] },
+        { l: "Erst sauber prüfen, ob die Mail wirklich gefälscht ist. Dann entscheiden wir.", fx: { schaden: 1 }, time: 40,
+          lesson: "Bei Zahlungsbetrug zählt jede Minute: Das Geld wird schnell weitergeleitet. Den Rückruf sofort anstoßen und parallel prüfen.",
+          then: [S("Martina", "Vierzig Minuten später ... ja, sie ist gefälscht. Und das Geld ist schon weiter unterwegs.")] },
+        { l: "Antworten Sie dem Absender und fragen Sie, ob er das wirklich war.", fx: { beweise: -1 }, time: 10, set: "warned",
+          lesson: "Rückfragen nie über den verdächtigen Kanal. Sie warnen nur die Täter. Immer über eine bekannte, unabhängige Nummer verifizieren.",
+          then: [S("Martina", "Die Antwort kam sofort: „Selbstverständlich war ich das. Bitte beeilen Sie sich mit der zweiten Tranche.“ ... oh nein.")] }
+      ]),
+      S("Martina", "Lena aus dem SOC soll sich die Mail ansehen. Und Dr. Vogel muss es wissen, sie ist unten bei Herrn Hollerbach."),
+      SET("p1")
+    ];
+    if (f.twist && !f.m2) return [
+      S("Martina", "Ich habe gehört, dass Dr. Webers Postfach gehackt war. Trotzdem: Ich hätte es merken müssen. 4,8 Millionen."),
+      CH("Martina ist am Boden zerstört.", [
+        { l: "Sie haben sofort gemeldet, und das war entscheidend. Gescheitert ist der Prozess: Eine Mail allein durfte nie für 4,8 Mio. reichen.", fx: { team: 2 }, time: 10,
+          praise: "Schuldfreie Haltung: Prozesslücke benannt statt die Mitarbeiterin bloßzustellen.",
+          then: [S("Martina", "... danke. Ich bleibe. Wenn die wieder anrufen, will ich dabei sein.")] },
+        { l: "Ehrlich gesagt: Das hätte Ihnen auffallen müssen.", fx: { team: -2 }, time: 5,
+          lesson: "Social Engineering zielt auf Menschen. Wer Betroffene bloßstellt, sorgt dafür, dass beim nächsten Mal niemand mehr meldet.",
+          then: [S("Martina", "... ja. Ich weiß.")] },
+        { l: "Gehen Sie nach Hause, wir übernehmen ab hier.", fx: { team: -1 }, time: 5,
+          lesson: "Betroffene sind wichtige Zeuginnen. Unterstützung ja, aber nicht wegschicken: Sie kennt die Abläufe und die Täterkommunikation.",
+          then: [S("Martina", "Nach Hause? Und die zweite Tranche? Nein. Ich bleibe.")] }
+      ]),
+      SET("m2")
+    ];
+    if (f.b2) return [S("Martina", "Ab morgen gilt: Kontoänderung oder Großzahlung nur nach Rückruf über die bekannte Nummer. Keine Ausnahme.")];
+    return [S("Martina", "Ich habe alle Mails gesichert. Nichts gelöscht, nichts beantwortet.")];
+
+  case "hahn":
+    if (!f.p1) return [S("Hahn", "Treasury. Liquiditätsplanung bis 2031. Spannend, oder?")];
+    if (!f.bank) return [
+      S("Hahn", "4,8 Millionen nach Litauen? Um 14:55 Uhr? Dann ist das Geld wahrscheinlich schon gutgeschrieben. Was soll ich tun?"),
+      CH("Wie holst du das Geld zurück?", [
+        { l: "Hausbank über die hinterlegte Notfallnummer anrufen: Betrugsverdacht, Zahlungsrückruf, Kontakt zur Empfängerbank. Alles mit Uhrzeit dokumentieren.", fx: { beweise: 1 }, time: 10,
+          praise: "Rückruf über die Hausbank mit hinterlegter Notfallnummer eingeleitet und dokumentiert.",
+          then: [S("Hahn", "Die Hausbank hat einen Betrugsfall eröffnet. Sie kontaktieren die Empfängerbank. Ich bleibe am Telefon.")] },
+        { l: "Die Überweisung einfach im Online-Banking stornieren.", fx: { schaden: 1 }, time: 20,
+          lesson: "Ausgeführte Überweisungen lassen sich nicht einfach stornieren. Nur ein Rückruf über die Bank und die Empfängerbank hat eine Chance.",
+          then: [S("Hahn", "Stornieren geht nicht mehr, sie ist ausgeführt. Ich rufe jetzt doch die Hausbank an. Zwanzig Minuten verloren.")] },
+        { l: "Bis morgen warten. Vielleicht ist das Geld noch gar nicht raus.", fx: { schaden: 3, vertrauen: -2 }, time: 10,
+          ko: "Am nächsten Morgen ist das Geld über sechs Konten in drei Ländern verteilt und größtenteils in Krypto getauscht. Der Vorstand zieht dich vom Fall ab.",
+          lesson: "Bei Zahlungsbetrug entscheiden die ersten Stunden. Warten heißt verlieren.",
+          then: [S("Hahn", "Morgen? Bis morgen ist das Geld in Krypto getauscht. Ich rufe jetzt an.")] }
+      ]),
+      SET("bank")
+    ];
+    if (f.b1) return [S("Hahn", "2,9 Millionen eingefroren. Der Rest ... wir kämpfen weiter.")];
+    return [S("Hahn", "Ich bin bereit. Das Telefon zur Hausbank steht hier am Schreibtisch.")];
+
+  case "lena":
+    if (!f.p1) return [S("Lena", "Ruhiger Mittwoch. Nur Phishing-Meldungen. Wie immer.")];
+    if (!f.hdr) return [
+      S("Lena", "Ich habe den Header. Absender: weber@finops-ag.com. Unsere Domain ist finops.de. Die gefälschte Domain wurde vor sechs Tagen registriert."),
+      S("Lena", "Aber das erklärt nicht alles: Woher wussten die von Projekt Nordlicht? Und dass Dr. Weber heute fliegt?"),
+      CH("Was machst du mit der Mail?", [
+        { l: "Gefälschte Domain im Mail-Gateway sperren, alle Mails von dort im ganzen Haus suchen und entfernen, Takedown beantragen. Und Webers Postfach prüfen.", fx: { beweise: 2 }, time: 15,
+          praise: "Lookalike-Domain gesperrt, Mails haus-weit bereinigt und die Ursache für das Insiderwissen gesucht.",
+          then: [S("Lena", "Sieben weitere Mails von der Domain gefunden. An die Buchhaltung, an Treasury, an die Assistenz. Alle entfernt.")] },
+        { l: "Diese eine Mail löschen. Fall erledigt.", fx: { beweise: -2 }, time: 5,
+          lesson: "Betrüger schreiben selten nur eine Person an. Ohne haus-weite Suche bleiben weitere Mails liegen, und die Beweise sind weg.",
+          then: [S("Lena", "Gelöscht. Hoffentlich war das die einzige ...")] },
+        { l: "Rundmail an alle 3.000 Mitarbeitenden, mit der Betrugsmail als Anhang zur Ansicht.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Warnen ja, aber ohne die Schadmail weiterzuverteilen: kurze Warnung mit Merkmalen, über bekannte Kanäle.",
+          then: [S("Lena", "Drei Leute haben auf den Link in der weitergeleiteten Mail geklickt. Aus Neugier.")] }
+      ]),
+      SET("hdr")
+    ];
+    if (f.b2) return [S("Lena", "DMARC steht jetzt auf reject und wir überwachen ähnliche Domains. Nächstes Mal sehen wir die Fälschung vorher.")];
+    return [S("Lena", "Ich beobachte das Mail-Gateway. Nichts kommt mehr von finops-ag.com durch.")];
+
+  case "vogel":
+    if (!f.p1) return [S("Dr. Vogel", "Ich sitze mit Herrn Hollerbach über dem Budget. Sehr erholsam.")];
+    if (!f.esc) return [
+      S("Dr. Vogel", "4,8 Millionen? Über eine gefälschte Mail? ... Was brauchen Sie von mir?"),
+      CH("Wie eskalierst du?", [
+        { l: "Krisenstab, Strafanzeige, Hausbank meldet den Geldwäscheverdacht, Vorstand informieren. Und Dr. Weber über einen zweiten, bekannten Kanal erreichen: Assistenz oder Airline.", fx: { vertrauen: 2 }, time: 15,
+          praise: "Schnell eskaliert: Krisenstab, Strafverfolgung und Verifikation über einen unabhängigen Kanal.",
+          then: [S("Dr. Vogel", "Gut. Die Assistenz sagt: Dr. Weber landet um 19:30 Uhr in Singapur. Bis dahin ist sie nicht erreichbar.")] },
+        { l: "Das ist ein Buchhaltungsfehler, kein Sicherheitsvorfall. Das regelt die Finanzabteilung.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "CEO-Fraud ist ein Sicherheitsvorfall: Social Engineering, gefälschte Domain, womöglich ein kompromittiertes Postfach. Das CSIRT gehört dazu.",
+          then: [S("Dr. Vogel", "Ein Buchhaltungsfehler mit gefälschter Domain? Nein. Das ist unser Fall.")] },
+        { l: "Erst einmal Frau Keller freistellen. Sie hat den Schaden verursacht.", fx: { team: -2, vertrauen: -1 }, time: 5,
+          lesson: "Schuldzuweisung mitten in der Krise: Die wichtigste Zeugin wird weggeschickt, und niemand meldet beim nächsten Mal freiwillig.",
+          then: [S("Dr. Vogel", "Frau Keller hat sofort gemeldet. Das ist genau das Verhalten, das wir wollen. Nein.")] }
+      ]),
+      SET("esc"),
+      S("Dr. Vogel", "Starten Sie die Rückholaktion. Herr Hahn hat das Telefon zur Hausbank an seinem Schreibtisch im Treasury.")
+    ];
+    if (f.b2 && !f.review) return [
+      S("Dr. Vogel", "Das Geld ist teilweise zurück, der zweite Versuch ist gescheitert. Was ändern wir?"),
+      CH("Wie schließt du den Fall ab?", [
+        { l: "Rückruf über bekannte Nummer bei jeder Kontoänderung und Großzahlung, echtes Vier-Augen-Prinzip, Phishing-resistente MFA für den Vorstand, DMARC und Überwachung ähnlicher Domains, Schulung zu Deepfakes.", fx: { team: 2, vertrauen: 1 }, time: 45,
+          praise: "Prozess, Technik und Menschen gehärtet: Rückrufverfahren, MFA, DMARC und Deepfake-Schulung.",
+          then: [S("Dr. Vogel", "Und die Notfallnummer der Hausbank hängt ab morgen in jedem Büro der Finanzabteilung.")] },
+        { l: "Neue Regel: Frau Keller darf keine Zahlungen mehr freigeben.", fx: { team: -2 }, time: 10,
+          lesson: "Eine Person zu sperren schließt keine Prozesslücke. Die Täter versuchen es einfach bei der nächsten.",
+          then: [S("Dr. Vogel", "Dann ruft der nächste Betrüger eben ihren Stellvertreter an.")] },
+        { l: "Mehr Spamfilter, dann kommt so etwas nicht mehr durch.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Die gefährlichste Mail kam aus einem echten, kompromittierten Postfach. Kein Spamfilter ersetzt einen sauberen Freigabeprozess.",
+          then: [S("Dr. Vogel", "Der zweite Angriff war ein Anruf. Mit Webers Stimme. Welcher Spamfilter hilft da?")] }
+      ]),
+      SET("review"),
+      S("", "Mittwochabend. Im Zahlungsverkehr klebt ein neuer Zettel am Monitor: „Erst zurückrufen. Immer.“"),
+      { t: "end" }
+    ];
+    return [S("Dr. Vogel", f.esc ? "Ich halte Ihnen den Rücken frei." : "...")];
+
+  case "tobias":
+    if (!f.b1) return [S("Tobias", "Ich warte auf Material. Gib mir Header, Logs, irgendwas.")];
+    if (!f.twist) return [
+      S("Tobias", "Ich habe Dr. Webers Postfach untersucht. Die Fälschung war nicht alles."),
+      S("Tobias", "Vor drei Wochen hat sie sich über eine gefälschte Login-Seite angemeldet. Seitdem liest jemand mit: Eine Postfachregel verschiebt alle Mails mit „Nordlicht“ oder „Zahlung“ in einen versteckten Ordner."),
+      ...(f.kevinHint ? [S("Tobias", "Und Kevins Fund passt: Dass sie heute fliegt, stand auf LinkedIn. Den Rest hatten sie aus ihrem Postfach."), FX({ beweise: 1 })] : []),
+      CH("Was machst du mit dem Postfach der Finanzvorständin?", [
+        { l: "Sitzungen widerrufen, Regel entfernen, Passwort und MFA neu, Postfach auf weitere Abflüsse prüfen. Dr. Weber sachlich informieren, ohne Vorwurf.", fx: { beweise: 2 }, time: 20,
+          praise: "Kompromittiertes Vorstandspostfach vollständig bereinigt, ohne Ausnahme für die Hierarchie.",
+          then: [S("Tobias", "Erledigt. Und jetzt wissen wir, woher sie das Insiderwissen hatten.")] },
+        { l: "Das ist das Postfach einer Vorständin. Da schauen wir lieber nicht genauer hin.", fx: { schaden: 1, vertrauen: -1 }, time: 5,
+          lesson: "Keine Ausnahmen für Führungskräfte: Gerade ihre Postfächer sind das Ziel. Ein kompromittiertes Konto bleibt kompromittiert.",
+          then: [S("Tobias", "Dann liest der Angreifer weiter mit. Auch das, was wir gerade planen.")] },
+        { l: "Dr. Weber ist auf Phishing reingefallen. Das muss der Aufsichtsrat erfahren.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Schuldzuweisung statt Aufklärung: Phishing trifft alle Ebenen. Der Aufsichtsrat braucht Ursachen und Maßnahmen, keine Sündenböcke.",
+          then: [S("Tobias", "Sicher, der Aufsichtsrat wird informiert. Aber erst sperren wir den Angreifer aus.")] }
+      ]),
+      SET("twist")
+    ];
+    if (f.b2) return [S("Tobias", "Ich habe die Sprachaufnahme der Mailbox gesichert. Die Stimme ist KI-generiert, eindeutig.")];
+    return [S("Tobias", "Ich sichere alles für das LKA: Header, Postfachregel, Anmeldeprotokolle.")];
+
+  case "kaya":
+    if (!f.b1) return [S("Dr. Kaya", "Sie sehen aus, als bräuchten Sie gleich eine Juristin. Ich bin hier.")];
+    if (!f.recht) return [
+      S("Dr. Kaya", "4,8 Millionen, davon 2,9 eingefroren. Wir müssen an Strafanzeige, Versicherung und Beweise denken."),
+      CH("Was ist jetzt rechtlich wichtig?", [
+        { l: "Versicherung sofort melden, wegen der Obliegenheiten. Anzeige ist gestellt, Beweise lückenlos sichern, Ansprüche gegen Empfängerbank und Täter prüfen.", fx: { vertrauen: 1 }, time: 15,
+          praise: "Versicherung fristgerecht informiert, Beweise und Ansprüche rechtlich abgesichert.",
+          then: [S("Dr. Kaya", "Gut. Die Versicherung verlangt alle Unterlagen innerhalb von 48 Stunden. Machbar.")] },
+        { l: "Die Versicherung informieren wir, wenn wir wissen, wie viel endgültig weg ist.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Versicherungen haben Meldeobliegenheiten. Wer zu spät meldet, riskiert die Leistung.",
+          then: [S("Dr. Kaya", "Dann zahlt die Versicherung womöglich gar nichts. Ich melde jetzt.")] },
+        { l: "Frau Keller persönlich in Regress nehmen.", fx: { team: -2 }, time: 5,
+          lesson: "Mitarbeitende haften nur eingeschränkt. Und wer Opfer eines professionellen Betrugs wird, ist kein Täter.",
+          then: [S("Dr. Kaya", "Das wäre arbeitsrechtlich kaum haltbar und menschlich verheerend. Nein.")] }
+      ]),
+      SET("recht")
+    ];
+    return [S("Dr. Kaya", "Die Anzeige beim LKA läuft. Die Ermittler wollen morgen die Originalmails.")];
+
+  case "holl":
+    if (!f.b1) return [S("Hollerbach", "Ich höre, es gibt ein Problem in der Finanzabteilung? Kommen Sie mit Fakten wieder.")];
+    if (!f.vor) return [
+      S("Hollerbach", "4,8 Millionen. Ich muss heute noch den Aufsichtsrat informieren. Was sage ich?"),
+      CH("Was empfiehlst du dem Vorstand?", [
+        { l: "Ehrlich: 4,8 Mio. überwiesen, 2,9 eingefroren, der Rest ist unsicher. Ursache: gefälschte Domain und kompromittiertes CFO-Postfach. Sofort gilt: Großzahlungen nur nach Rückruf über bekannte Nummer.", fx: { vertrauen: 2 }, time: 20,
+          praise: "Vorstand und Aufsichtsrat ehrlich, mit Zahlen und Sofortmaßnahme informiert.",
+          then: [S("Hollerbach", "Unangenehm, aber klar. Damit gehe ich in den Aufsichtsrat.")] },
+        { l: "Erst wenn wir wissen, wie viel zurückkommt. Sonst beunruhigen wir den Aufsichtsrat unnötig.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "Schlechte Nachrichten früh und ehrlich überbringen. Wer wartet, verliert Vertrauen, wenn es später herauskommt.",
+          then: [S("Hollerbach", "Und wenn der Aufsichtsrat es morgen aus der Zeitung erfährt?")] },
+        { l: "Kein Thema für den Vorstand. Das ist ein Fehler im Zahlungsverkehr, das regeln die selbst.", fx: { vertrauen: -3 }, time: 5,
+          ko: "Der Aufsichtsrat erfährt eine Woche später vom Wirtschaftsprüfer von 1,9 Mio. Euro Verlust. Die Frage lautet: Warum wusste der Vorstand nichts? Du wirst vom Fall abgezogen.",
+          lesson: "Ein Millionenschaden durch Betrug gehört sofort in den Vorstand. Verschweigen ist ein Governance-Versagen.",
+          then: [S("Hollerbach", "Kein Thema? Es geht um fast fünf Millionen Euro!")] }
+      ]),
+      SET("vor")
+    ];
+    if (f.b2) return [S("Hollerbach", "Der Aufsichtsrat hat die neuen Regeln einstimmig beschlossen. Gute Arbeit.")];
+    return [S("Hollerbach", "Halten Sie mich auf dem Laufenden.")];
+
+  case "weber":
+    if (f.b2 && !f.weber) return [
+      S("Dr. Weber", "Ich bin gelandet, habe die Nachrichten gesehen und den ersten Flieger zurück genommen. Mit meiner Stimme hat jemand angerufen?"),
+      S("Dr. Weber", "Und mein Postfach ... ich habe vor drei Wochen tatsächlich eine Login-Seite benutzt, die komisch aussah. Es tut mir leid."),
+      CH("Was sagst du der Finanzvorständin?", [
+        { l: "Das kann jedem passieren. Wichtig ist jetzt: Phishing-resistente MFA für Sie und den Vorstand, und Sie sprechen morgen offen mit dem Team darüber.", fx: { team: 1, vertrauen: 1 }, time: 10,
+          praise: "Mit der Vorständin offen und ohne Vorwurf gesprochen, Vorbildrolle genutzt.",
+          then: [S("Dr. Weber", "Ja. Wenn ich offen darüber rede, trauen sich die anderen auch.")] },
+        { l: "Als Vorständin hätten Sie das erkennen müssen.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Auch Vorstände werden Opfer professioneller Angriffe. Vorwürfe ändern nichts, Maßnahmen schon.",
+          then: [S("Dr. Weber", "Danke. Das weiß ich selbst.")] }
+      ]),
+      SET("weber")
+    ];
+    return [S("Dr. Weber", "Ich habe meinen ersten FIDO2-Schlüssel. Ziemlich unspektakulär für so viel Ärger.")];
+
+  case "kevin":
+    if (!f.p1) return [S("Kevin", "Ich lerne gerade, wie man Excel-Makros schreibt. Ohne Makros.")];
+    if (!f.kevin) return [
+      S("Kevin", "Chef, schau mal: Dr. Weber hat gestern auf LinkedIn gepostet: „Freue mich auf die FinTech-Konferenz in Singapur, Abflug morgen 14:00 Uhr!“"),
+      CH("Kevin zeigt dir einen öffentlichen Post.", [
+        { l: "Sehr gut beobachtet! Screenshot an Tobias. Daher wussten die Täter, wann sie nicht erreichbar ist.", fx: { beweise: 2, team: 1 }, time: 5, set: "kevinHint",
+          praise: "OSINT-Hinweis des Praktikanten genutzt: öffentlich geteilte Reisepläne als Teil des Angriffs erkannt.",
+          then: [S("Kevin", "Wusste ich doch! Die Täter lesen auch LinkedIn.")] },
+        { l: "Social Media ist privat. Das hat nichts mit dem Fall zu tun.", time: 2,
+          lesson: "Öffentliche Reisepläne und Organigramme sind Gold für Betrüger. OSINT gehört in jede Analyse von CEO-Fraud.",
+          then: [S("Kevin", "Okay ... aber komisch ist das Timing schon.")] }
+      ]),
+      SET("kevin")
+    ];
+    return [S("Kevin", "Ich hab meinen LinkedIn-Status auf „irgendwo“ geändert.")];
+  }
+  return [S("", "...")];
+}
+
+function interact4(x, y) {
+  const ch = tileAt(x, y), f = G.flags, room = roomAt(x, y);
+  if (ch === "D" && room === "Treasury") {
+    if (!f.p1) return [S("", "Hahns Schreibtisch. Drei Telefone, zwei davon rot.")];
+    if (f.b1) return [S("", "Das Telefon zur Hausbank. Die Leitung ist noch warm.")];
+    if (!f.bank) return [S("Hahn", "Moment! Wir brauchen erst einen Plan. Sprechen Sie mit mir, bevor jemand anruft.")];
+    if (!f.esc) return [S("Hahn", "Bevor wir LKA und Hausbank voll einspannen: Dr. Vogel muss Bescheid wissen. Sie ist unten in der Vorstandsetage.")];
+    const late = G.time >= 17 * 60 ? [
+      S("Hahn", "Es ist nach fünf. Die Empfängerbank ist schwer zu erreichen, ihr Betrugsteam ist im Feierabend."),
+      FX({ schaden: 1 }), { t: "lesson", text: "Bei Zahlungsbetrug zählt jede Stunde. Nach Geschäftsschluss wird jede Rückholung schwerer." }
+    ] : [{ t: "praise", text: "Rückholaktion noch vor 17:00 Uhr gestartet." }];
+    return late.concat([
+      S("Hahn", "Ich habe die Hausbank in der Leitung. Das Geld wandert schon. Los!"),
+      BAT("b1"),
+      SET("b1"),
+      S("Hahn", "2,9 Millionen eingefroren! Der Rest ist auf Konten in drei Ländern verteilt. Das LKA übernimmt."),
+      S("Hahn", "Tobias hat übrigens angerufen. Er hat etwas im Postfach von Dr. Weber gefunden.")
+    ]);
+  }
+  if (ch === "D" && room === "CFO-Büro") return [S("", f.b2 ? "Dr. Webers Schreibtisch. Ein neuer FIDO2-Schlüssel liegt neben der Tastatur." : "Dr. Webers verwaister Schreibtisch. Auf dem Kalender: „14:00 Abflug Singapur“.")];
+  if (ch === "M") {
+    if (comms4() && !f.b2) return [
+      { t: "sfx", n: "alarm" },
+      S("Telefon", "RIIING! Martina stellt einen Anruf zu dir durch: „Das ist Dr. Weber! Sie will mich sprechen. Wegen der zweiten Tranche!“"),
+      S("Anruferin", "Frau Keller? Weber hier. Ich habe nur kurz Netz am Flughafen. Die zweite Tranche muss JETZT raus, sonst platzt Nordlicht."),
+      S("", "Die Stimme klingt exakt wie Dr. Weber. Aber Dr. Weber sitzt laut Airline gerade im Flugzeug."),
+      BAT("b2"),
+      SET("b2"),
+      S("Martina", "Aufgelegt. Und ... da kommt die echte Dr. Weber den Flur entlang. Sie ist früher zurückgeflogen."),
+      S("Dr. Vogel", "Gute Arbeit. Kommen Sie zur Nachbereitung in die Vorstandsetage, unten rechts.")
+    ];
+    if (f.b1 && !comms4()) return [S("", "Dein Telefon ist still. Noch.")];
+    return undefined;
+  }
+  return undefined;
+}
+
+const BATTLES4 = {
+  b1: {
+    name: "PHANTOM", sub: "GELDWÄSCHE - LÄUFT", hp: 110, model: "phantom",
+    hpBonus: () => (G.time >= 17 * 60 ? 30 : 0) + (G.flags.warned ? 20 : 0),
+    intro: ["Das PHANTOM schiebt 4,8 Millionen Euro durch ein Netz aus Konten!", "Hol so viel Geld zurück wie möglich, bevor es verschwindet!"],
+    moves: [
+      { n: "Rückruf über Hausbank", key: "rr", who: "Hahn", d: "Zahlungsrückruf mit Betrugsverdacht über die Hausbank.",
+        act: B => B.used.rr ? { dmg: 0, msg: ["Der Rückruf läuft bereits."] }
+          : (B.used.rr = 1, { dmg: 35, msg: ["Sehr effektiv! Die Hausbank setzt den Rückruf in Gang."], praise: "Zahlungsrückruf sofort über die Hausbank gestartet." }) },
+      { n: "Empfängerbank warnen", key: "eb", who: "Hahn", d: "Die Bank in Litauen soll das Konto einfrieren.",
+        act: B => B.used.eb ? { dmg: 0, msg: ["Die Empfängerbank ist gewarnt."] }
+          : (B.used.eb = 1, { dmg: 30, msg: ["Sehr effektiv! Das Empfängerkonto ist eingefroren."], praise: "Empfängerbank direkt eingebunden, Konto eingefroren." }) },
+      { n: "Anzeige beim LKA", key: "lka", who: "Du", d: "Die Zentrale Ansprechstelle Cybercrime einschalten.",
+        act: B => B.used.lka ? { dmg: 0, msg: ["Das LKA ermittelt bereits."] }
+          : (B.used.lka = 1, { dmg: 25, msg: ["Effektiv! Das LKA stößt internationale Kontosperren an."], praise: "Strafverfolgung sofort eingebunden." }) },
+      { n: "Geldspur verfolgen", who: "Lena", d: "Weiterleitungen nachverfolgen und den Banken melden.",
+        act: () => ({ dmg: 12, fx: { beweise: 1 }, msg: ["Lena findet ein weiteres Zielkonto und meldet es der Hausbank."] }) },
+      { n: "Täter zur Rückzahlung auffordern", who: "Du", d: "Eine Mail an die Betrüger schreiben.",
+        act: () => ({ dmg: 0, fx: { beweise: -1 }, msg: ["Die Antwort: ein Smiley. Und das Geld wandert schneller weiter."],
+          lesson: "Kontakt mit den Tätern warnt sie nur. Rückholung läuft über Banken und Strafverfolgung." }) },
+      { n: "Zweite Tranche als Köder", who: "Du", d: "Zum Schein zahlen, um die Täter zu ködern.",
+        act: () => ({ dmg: 5, fx: { schaden: 2, vertrauen: -2 }, msg: ["Martina überweist 100.000 Euro als Köder ...", "... und auch die sind sofort weg."],
+          lesson: "Eigenmächtige „Köder“-Zahlungen sind keine Ermittlungstaktik. Das entscheiden Strafverfolgungsbehörden, nicht das CSIRT.",
+          ko: "Du hast weitere 100.000 Euro an Betrüger überweisen lassen. Der Vorstand zieht dich vom Fall ab." }) }
+    ],
+    enemy: B => [
+      { w: B.used.rr ? 1 : 3, text: "PHANTOM leitet das Geld auf ein weiteres Konto weiter!", heal: 15 },
+      { w: B.used.eb ? 0 : 2, text: "PHANTOM hebt 200.000 Euro in bar ab!", fx: { schaden: 1 } },
+      { w: B.used.lka ? 1 : 2, text: "PHANTOM tauscht einen Teil in Kryptowährung!", fx: { schaden: 1 } },
+      { w: 1, text: G.flags.hdr ? "PHANTOM löscht die gefälschte Domain. Zu spät: Lena hat alles gesichert." : "PHANTOM löscht die gefälschte Domain und alle Spuren!", fx: G.flags.hdr ? undefined : { beweise: -1 } }
+    ],
+    win: ["Das PHANTOM verliert die Spur des Geldes!", "2,9 von 4,8 Millionen Euro sind eingefroren. Dein Team erhält 500 Erfahrungspunkte."]
+  },
+  b2: {
+    name: "DEEPFAKE-WEBER", sub: "STIMMKLON - ZWEITE TRANCHE", hp: 120, model: "deepfake",
+    hpBonus: () => (G.flags.m2 ? 0 : 20) - (G.flags.twist ? 10 : 0),
+    intro: ["Eine perfekte Kopie von Dr. Webers Stimme fordert 2,1 Millionen!", "Hilf Martina, die Fälschung zu entlarven. Ruhig bleiben!"],
+    moves: [
+      { n: "Rückruf über bekannte Nummer", key: "rb", who: "Martina", d: "Auflegen und die echte Nummer aus dem Telefonbuch wählen.",
+        act: B => B.used.rb ? { dmg: 0, msg: ["Die echte Nummer ist schon gewählt."] }
+          : (B.used.rb = 1, { dmg: 35, msg: ["Sehr effektiv! Die echte Dr. Weber ist im Flugmodus. Der Anruf kann nicht von ihr sein."], praise: "Verifikation per Rückruf über die bekannte Nummer." }) },
+      { n: "Kontrollfrage stellen", key: "kf", who: "Martina", d: "Etwas fragen, das nur die echte Dr. Weber weiß.",
+        act: B => B.used.kf ? { dmg: 0, msg: ["Die Frage ist schon gestellt."] }
+          : (B.used.kf = 1, { dmg: 25, msg: ["Effektiv! „Wie heißt Ihr Hund?“ Kurze Stille. Dann: „Dafür habe ich jetzt keine Zeit!“"] }) },
+      { n: "Vier-Augen-Freigabe verlangen", key: "va", who: "Du", d: "Ohne zweite, unabhängige Freigabe geht nichts raus.",
+        act: B => B.used.va ? { dmg: 0, msg: ["Die Freigaberegel gilt bereits."] }
+          : (B.used.va = 1, { dmg: 25, msg: ["Effektiv! „Ohne Freigabe von Herrn Hollerbach geht nichts raus.“ Die Stimme wird lauter."], praise: "Auf echtem Vier-Augen-Prinzip bestanden." }) },
+      { n: "Ruhig bleiben, notieren", who: "Martina", d: "Zeit gewinnen, jede Forderung mitschreiben.",
+        act: () => ({ dmg: 12, fx: { beweise: 1 }, msg: ["Martina notiert Uhrzeit, Kontonummer, Wortlaut. Der Druck läuft ins Leere."] }) },
+      { n: "Heimlich mitschneiden", who: "Du", d: "Das Gespräch ohne Ankündigung aufnehmen.",
+        act: () => ({ dmg: 8, fx: { vertrauen: -1 }, msg: ["Die Aufnahme läuft ...", "Dr. Kaya schüttelt im Hintergrund energisch den Kopf."],
+          lesson: "Heimliche Gesprächsaufnahmen sind strafbar (§ 201 StGB) und vor Gericht wertlos. Besser: Notizen, Uhrzeiten, Anrufernummer, LKA informieren." }) },
+      { n: "Zweite Tranche freigeben", who: "Du", d: "Die Stimme klingt echt. Lieber zahlen als Nordlicht gefährden.",
+        act: () => ({ dmg: 0, fx: { schaden: 3, vertrauen: -2 }, msg: ["2,1 Millionen Euro gehen raus ...", "... an dieselben Betrüger."],
+          lesson: "Eine bekannte Stimme ist kein Beweis mehr. KI-Stimmklone sind billig. Verifikation über einen unabhängigen Kanal ist Pflicht.",
+          ko: "Du hast 2,1 Millionen Euro an einen Stimmklon freigegeben. Der Vorstand zieht dich mit sofortiger Wirkung vom Fall ab." }) }
+    ],
+    enemy: B => [
+      { w: B.used.kf ? 1 : 3, text: "DEEPFAKE-WEBER erzeugt Zeitdruck: „Nordlicht platzt in zehn Minuten!“", heal: 12 },
+      { w: 2, text: "DEEPFAKE-WEBER spielt Autorität aus: „Ich bin Ihre Vorständin!“", fx: { team: -1 } },
+      { w: B.used.va ? 0 : 2, text: "DEEPFAKE-WEBER verlangt Vertraulichkeit: „Sprechen Sie mit niemandem darüber!“", heal: 10 },
+      { w: 1, text: "Die Stimme stockt kurz. Ein Artefakt der KI. Martina hat es auch gehört." }
+    ],
+    win: ["DEEPFAKE-WEBER legt auf!", "Die zweite Tranche bleibt hier. Dein Team erhält 999 Erfahrungspunkte."]
+  }
+};
+
+CASES.phantom = {
+  id: "phantom", num: 4, title: "PHANTOM", sub: "CEO-Fraud mit gefälschter Domain und Stimmklon", diff: 3,
+  desc: "Mi, 15:40 Uhr. 4,8 Mio. Euro sind auf Anweisung der „Finanzvorständin“ überwiesen. Jede Minute zählt, und die Täter rufen wieder an.",
+  saveKey: "csirt_case_phantom_v1", start: { time: 15 * 60 + 40, x: 18, y: 9, dir: 1, days: ["Mi", "Do", "Fr", "Sa"] },
+  fastLimit: 21 * 60, fastText: "Wer vor 21:00 Uhr fertig wird, bekommt einen Tempo-Bonus.",
+  map: [
+    "####################################",
+    "#==W===V===#=W==#..#=V==W==#==W====#",
+    "#..........#....#..#.......#.......#",
+    "#.DD.DD.DD.#.DD.#..#.DD.DD.#.DD..B.#",
+    "#..........#....d..d.......#.......#",
+    "#.DD.DD.DD.#....#..#.DD.DD.#.DD....#",
+    "#..........#....#..#.......#.......#",
+    "#P........P#P..P#..#P.....P#P.....P#",
+    "#####d###########..############d####",
+    "#..................................#",
+    "#.....................MM...........#",
+    "####d#######d####..############d####",
+    "#,K,,,,#........#..#______#________#",
+    "#,,,,,,#.DD..B..#..#_DD___#__TTTT__#",
+    "#,,TT,,#........#..d______#__TTTT__#",
+    "#,,TT,,#........#..#_____B#________#",
+    "#,,,,,C#P......P#..#P____P#P______P#",
+    "####################################"
+  ],
+  rooms: [
+    { n: "Zahlungsverkehr", x0: 1, y0: 1, x1: 10, y1: 7 }, { n: "Treasury", x0: 12, y0: 1, x1: 15, y1: 7 },
+    { n: "SOC", x0: 20, y0: 1, x1: 26, y1: 7 }, { n: "Forensik", x0: 28, y0: 1, x1: 34, y1: 7 },
+    { n: "Küche", x0: 1, y0: 12, x1: 6, y1: 16 }, { n: "Rechtsabteilung", x0: 8, y0: 12, x1: 15, y1: 16 },
+    { n: "CFO-Büro", x0: 20, y0: 12, x1: 25, y1: 16 }, { n: "Vorstand", x0: 27, y0: 12, x1: 34, y1: 16 }
+  ],
+  floors: { Zahlungsverkehr: ["#c9b38a", "#bfa980"], Treasury: ["#7d6a8a", "#746181"], Rechtsabteilung: ["#6e5a4a", "#655242"], "CFO-Büro": ["#8b2a34", "#7f2530"] },
+  wallColor: "#ece4d6",
+  alarmPos: [[5, 4], [14, 4]],
+  videoWall: f => f.b1 ? "Zahlungsverkehrs-Monitor: Alle Ausgänge über 50.000 Euro sind gestoppt." : "Zahlungsverkehrs-Monitor: 14:55 Uhr, 4.800.000,00 EUR, Empfänger LT-…, Status: ausgeführt.",
+  npcs: NPCS4, npcPos: npcPos4, npcNew: npcNew4, talk: talk4, interact: interact4, objectives: objectives4, battles: BATTLES4,
+  titleModel: "phantom",
+  handbook: f => !f.b1 ? "Zahlungsbetrug, Kapitel 1: Sofort Hausbank, Rückruf, Empfängerbank, LKA. Nie über den verdächtigen Kanal antworten."
+    : !f.b2 ? "Zahlungsbetrug, Kapitel 2: Woher kam das Insiderwissen? Postfächer prüfen, OSINT bedenken. Mit einem zweiten Versuch rechnen."
+    : "Zahlungsbetrug, Kapitel 3: Rückruf über bekannte Nummer, Vier-Augen-Prinzip, DMARC, Phishing-resistente MFA. Eine bekannte Stimme ist kein Beweis.",
+  intro: n => [
+    S("", "Mittwoch, 15:40 Uhr. FinOps Rechenzentrum AG, Finanzbereich im fünften Stock."),
+    S("", "Du bist " + n + ", CSIRT-Manager, und eigentlich nur für ein Meeting hier oben."),
+    DIFF(),
+    { t: "sfx", n: "alarm" },
+    S("Handy", "Martina Keller, Leiterin Zahlungsverkehr: „Bitte kommen Sie sofort. Ich glaube, ich habe gerade 4,8 Millionen an Betrüger überwiesen.“"),
+    S("", "Der Zahlungsverkehr ist oben links."),
+    HINT()
+  ],
+  marks: f => { const m = []; if (f.bank && f.esc && !f.b1) m.push([13, 3, 1.6]); if (comms4() && !f.b2) m.push([22, 10, 1.5]); return m; },
+  alarm: f => ({ active: f.p1 && !f.b2, critical: f.p1 && !f.b1, color: (f.p1 && !f.b1) ? undefined : "#ffb300" }),
+  dawn: f => f.review ? 0.6 : f.b1 ? 0.15 : 0.5
+};
+
+/* ================= FALL 5: EISBRECHER (Zero-Day an der VPN-Firewall) ================= */
+const NPCS5 = [
+  { id: "murat", name: "Murat Aydin", role: "Netzleitstelle (NOC)", x: 8, y: 4, dir: 0 },
+  { id: "nadine", name: "Nadine Ost", role: "Kundenbetreuung Banken", x: 16, y: 6, dir: 0 },
+  { id: "jonas", name: "Jonas Becker", role: "Firewall-Admin", x: 26, y: 4, dir: 0 },
+  { id: "lena", name: "Lena Brandt", role: "SOC-Lead", x: 4, y: 14, dir: 0 },
+  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 13, y: 14, dir: 0 },
+  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 21, y: 15, dir: 1 },
+  { id: "holl", name: "Frank Hollerbach", role: "Vorstand (Rufbereitschaft)", x: 24, y: 15, dir: 1 },
+  { id: "kevin", name: "Kevin", role: "Praktikant", x: 30, y: 13, dir: 0 }
+];
+function comms5() { const f = G.flags; return !!(f.twist && f.banks && f.vor && f.call); }
+function npcNew5(n) {
+  const f = G.flags;
+  switch (n.id) {
+    case "lena": return !f.z1;
+    case "jonas": return f.z1 && !f.mit;
+    case "tobias": return (f.z1 && !f.ict) || (f.b1 && f.ict && !f.twist);
+    case "vogel": return (f.z1 && !f.esc) || (f.b2 && !f.review);
+    case "murat": return f.z1 && !f.murat;
+    case "nadine": return f.b1 && !f.banks;
+    case "holl": return f.b1 && f.esc && !f.vor;
+    case "kevin": return f.z1 && !f.kevin;
+  }
+  return false;
+}
+function objectives5() {
+  const f = G.flags, o = [];
+  if (!f.z1) o.push("Lena wartet im SOC (unten links).");
+  else if (!f.b1) {
+    if (!f.mit) o.push("Mitigation klären: Jonas im Firewall-Raum (oben rechts).");
+    if (!f.esc) o.push("Eskaliere an Dr. Vogel (Krisenstab, unten Mitte).");
+    if (!f.ict) o.push("Tobias soll die Gateways auf Kompromittierung prüfen (Forensik, unten).");
+    if (f.mit && f.esc) o.push("Angriffswelle abwehren: an den Gateways im Firewall-Raum.");
+  } else if (!comms5()) {
+    if (!f.ict) o.push("Tobias soll die Gateways prüfen (Forensik, unten).");
+    else if (!f.twist) o.push("Tobias hat Neuigkeiten von den Gateways (Forensik, unten).");
+    if (!f.banks) o.push("Die Banken fragen nach: Nadine in der Netzleitstelle (oben links).");
+    if (!f.vor) o.push("Geschäftsentscheidung VPN: Herr Hollerbach (Krisenstab, unten Mitte).");
+    if (!f.call) o.push("Das Telefon an deinem Platz im Flur klingelt.");
+  } else if (!f.b2) o.push("Wirf EISBRECHER endgültig raus: Gateways im Firewall-Raum.");
+  else if (!f.review) o.push("Nachbereitung mit Dr. Vogel (Krisenstab, unten Mitte).");
+  if (f.z1 && !f.murat) o.push("(Optional) Murat in der Netzleitstelle hat etwas entdeckt.");
+  if (f.z1 && !f.kevin) o.push("(Optional) Kevin sitzt in der Küche und liest Fachforen.");
+  return o;
+}
+
+function talk5(id) {
+  const f = G.flags, N = G.name;
+  switch (id) {
+  case "lena":
+    if (!f.z1) return [
+      S("Lena", "Endlich. 21:47 Uhr kam die Warnung des Herstellers: kritische Lücke in BastionGate, unserer VPN-Firewall. Ohne Anmeldung ausnutzbar. Bewertung 10 von 10."),
+      S("Lena", "Sie wird bereits aktiv ausgenutzt. Ein Patch kommt frühestens Montag. Es gibt nur eine Mitigation, eine Konfigurationsdatei."),
+      S("Lena", "Wir haben zwei Gateways mit 9.000 VPN-Nutzern, darunter die Fernwartung der Bankfilialen. Und seit 21:58 Uhr sehen wir Scans auf genau diesen Pfad."),
+      CH("Was ist dein erster Schritt?", [
+        { l: "Exposition klären (Version, erreichbare Schnittstellen), Mitigation vorbereiten, Logs und Konfiguration der Gateways sichern, Netzwerk-Bereitschaft alarmieren.", fx: { beweise: 1 }, time: 15,
+          praise: "Zero-Day strukturiert angegangen: Exposition, Mitigation, Beweissicherung, Bereitschaft.",
+          then: [S("Lena", "Beide Gateways sind betroffen. Die Logs sichere ich jetzt.")] },
+        { l: "Ohne Patch können wir nichts tun. Am Montag patchen wir.", fx: { schaden: 2 }, time: 10,
+          lesson: "Kein Patch heißt nicht keine Maßnahmen: Mitigation, Angriffsfläche reduzieren, überwachen, im Notfall abschalten.",
+          then: [S("Lena", "Montag? Die scannen uns JETZT. Ich ziehe wenigstens die Logs.")] },
+        { l: "Sofort beide Gateways abschalten. Ohne Rücksprache, Sicherheit geht vor.", fx: { vertrauen: -2 }, time: 5, set: "rash",
+          lesson: "Eine Notabschaltung kann richtig sein, ist aber eine Geschäftsentscheidung mit Folgen für 700 Banken: abwägen, mit dem Krisenstab abstimmen, dokumentieren.",
+          then: [S("Lena", "Abgeschaltet. 9.000 Leute fliegen raus, darunter Filialtechniker mitten in der Wartung. Murat schaltet wieder ein, bis entschieden ist.")] }
+      ]),
+      S("Lena", "Jonas ist im Firewall-Raum oben rechts. Tobias in der Forensik nebenan. Und Dr. Vogel ist im Krisenstab."),
+      SET("z1")
+    ];
+    if (f.b2) return [S("Lena", "Die neuen Gateways laufen. Und das Management-Interface ist nur noch intern erreichbar. Endlich.")];
+    return [S("Lena", "Ich beobachte jede Anmeldung am VPN. Wenn der Angreifer drin war, finden wir seine Spur.")];
+
+  case "jonas":
+    if (!f.z1) return [S("Jonas", "Freitagabend im Firewall-Raum. Ich liebe meinen Job. Meistens.")];
+    if (!f.mit) return [
+      S("Jonas", "Ich habe die Mitigation des Herstellers gelesen. Sie blockiert den verwundbaren Pfad. Nebenwirkung: Die SAML-Anmeldung bricht für 40 Prozent der Nutzer."),
+      CH("Wie gehst du mit der Mitigation um?", [
+        { l: "Mitigation einspielen. Vorher die Konfiguration sichern. Betroffene SAML-Nutzer vorübergehend auf Zertifikats-Anmeldung umstellen.", fx: { schaden: -1 }, time: 20,
+          praise: "Hersteller-Mitigation zügig umgesetzt, Nebenwirkungen gezielt abgefedert.",
+          then: [S("Jonas", "Sicherung ist gezogen, die Mitigation liegt bereit. Ich spiele sie ein, wenn du an den Gateways das Kommando gibst.")] },
+        { l: "Wir warten, bis der Hersteller eine Mitigation ohne Nebenwirkungen liefert.", fx: { schaden: 1 }, time: 30, set: "badmit",
+          lesson: "Bei aktiver Ausnutzung ist eine Mitigation mit bekannten Nebenwirkungen fast immer besser als ungeschützte Systeme.",
+          then: [S("Jonas", "Der Hersteller schreibt: keine neue Version vor Montag. Na gut, dann eben doch diese.")] },
+        { l: "Ich baue lieber eine eigene Firewall-Regel. Der Hersteller-Datei traue ich nicht.", fx: { schaden: 1 }, time: 30, set: "badmit",
+          lesson: "Eigene, ungetestete Workarounds übersehen oft Varianten des Angriffs. Die Hersteller-Mitigation ist auf die Lücke zugeschnitten.",
+          then: [S("Jonas", "Meine Regel blockt den bekannten Pfad ... aber im Log sehe ich schon eine Variante, die durchkommt.")] }
+      ]),
+      SET("mit")
+    ];
+    if (f.b2) return [S("Jonas", "Neue Gateways, neue Zertifikate, neue Schlüssel. Und Montag kommt der Patch. Diesmal getestet.")];
+    if (f.b1) return [S("Jonas", "Die Welle ist abgewehrt. Aber ich traue den alten Gateways nicht mehr.")];
+    return [S("Jonas", f.esc ? "Bereit. Sag Bescheid, dann gehen wir an die Gateways." : "Bevor ich irgendwas an der Produktion ändere: Ist der Krisenstab informiert?")];
+
+  case "tobias":
+    if (!f.z1) return [S("Tobias", "Ich lese gerade, wie andere Firmen diese Lücke erwischt hat. Gruselig.")];
+    if (!f.ict) return [
+      S("Tobias", "Der Hersteller hat ein Integritäts-Prüftool veröffentlicht. Ich habe es laufen lassen. Ergebnis: alles sauber."),
+      CH("Wie bewertest du das Ergebnis?", [
+        { l: "Nicht blind vertrauen: zusätzlich extern prüfen, Speicherabbild und Dateisystem sichern, gezielt nach neuen Dateien und Webshells suchen.", fx: { beweise: 3 }, time: 30,
+          praise: "Herstellertool nicht blind vertraut, unabhängige Integritätsprüfung durchgeführt.",
+          then: [S("Tobias", "Mache ich. Das dauert, aber dann wissen wir es wirklich.")] },
+        { l: "Das Tool sagt sauber. Dann ist es sauber.", fx: { beweise: -2 }, time: 5, set: "trusted",
+          lesson: "Angreifer können Prüfwerkzeuge auf kompromittierten Geräten täuschen. Ein Gerät prüft man nicht nur mit sich selbst.",
+          then: [S("Tobias", "Okay ... ich lasse trotzdem ein Speicherabbild im Hintergrund laufen. Nur so ein Gefühl.")] },
+        { l: "Gateways neu starten. Falls etwas drauf ist, ist es danach weg.", fx: { beweise: -2 }, time: 10, set: "trusted",
+          lesson: "Ein Neustart vernichtet Spuren im Arbeitsspeicher. Manche Implantate überleben ihn trotzdem.",
+          then: [S("Tobias", "Neustart erledigt. Der Arbeitsspeicher ist leer, und wir wissen genauso wenig wie vorher.")] }
+      ]),
+      SET("ict")
+    ];
+    if (f.b1 && !f.twist) return [
+      S("Tobias", f.trusted ? "Erinnerst du dich? Das Tool sagte sauber. Ich habe trotzdem extern geprüft." : "Meine externe Prüfung ist fertig. Das Ergebnis gefällt mir nicht."),
+      S("Tobias", "Auf beiden Gateways liegt eine Webshell. Eingespielt um 21:52 Uhr. Das war noch vor unserer Mitigation. Der Hersteller bestätigt inzwischen: Angreifer manipulieren sein Prüftool."),
+      S("Tobias", "Und schlimmer: Sie haben die Konfiguration ausgelesen. Darin steht das Passwort des LDAP-Dienstkontos und der private Schlüssel des VPN-Zertifikats."),
+      ...(f.kevinHint ? [S("Tobias", "Kevins Indikatoren aus dem Forum haben geholfen. Eine IP-Adresse passt genau."), FX({ beweise: 1 })] : []),
+      CH("Wie gehst du mit den Gateways um?", [
+        { l: "Als kompromittiert behandeln: aus sauberem Image neu aufsetzen, alle Geheimnisse wechseln (LDAP-Dienstkonto, Zertifikate, lokale Admins), nach Bewegungen aus dem VPN ins Netz suchen.", fx: { beweise: 1 }, time: 20,
+          praise: "Kompromittierte Gateways vollständig neu aufgesetzt und alle abgeflossenen Geheimnisse rotiert.",
+          then: [S("Tobias", "Genau das. Ich schreibe die Liste aller Geheimnisse, die auf den Gateways lagen.")] },
+        { l: "Die Webshell löschen. Dann ist das Gerät wieder sauber.", fx: { schaden: 1 }, time: 10, set: "partial",
+          lesson: "Auf einem kompromittierten Gerät findet man selten alles. Neu aufsetzen und Geheimnisse wechseln ist der sichere Weg.",
+          then: [S("Tobias", "Gelöscht ... und eine Stunde später ist eine neue da. Er hat noch einen zweiten Weg.")] },
+        { l: "Alle 9.000 VPN-Nutzer müssen ihr Passwort ändern. Das reicht.", fx: { vertrauen: -1 }, time: 10, set: "partial",
+          lesson: "Die wertvollsten Geheimnisse waren das Dienstkonto und der Zertifikatsschlüssel. Nutzerpasswörter allein schließen diese Lücke nicht.",
+          then: [S("Tobias", "Die Nutzer fluchen, und das LDAP-Dienstkonto funktioniert für den Angreifer immer noch.")] }
+      ]),
+      SET("twist")
+    ];
+    if (f.b2) return [S("Tobias", "Der Bericht für die Banken ist fertig. Mit Zeitachse ab 21:52 Uhr.")];
+    return [S("Tobias", "Ich sichere die Speicherabbilder. Langsam, aber gründlich.")];
+
+  case "vogel":
+    if (!f.z1) return [S("Dr. Vogel", "Freitagabend, Rufbereitschaft. Ich hatte gehofft, das Telefon bleibt still.")];
+    if (!f.esc) return [
+      S("Dr. Vogel", "Eine Lücke mit Bewertung 10 an unseren VPN-Gateways, und sie wird ausgenutzt? Was schlagen Sie vor?"),
+      CH("Wie eskalierst du?", [
+        { l: "Krisenstab jetzt. Vorstand für eine mögliche VPN-Notabschaltung vorbereiten. Banken vorwarnen, weil ihre Fernwartung betroffen sein kann.", fx: { vertrauen: 2 }, time: 15,
+          praise: "Früh eskaliert und die Geschäftsentscheidung für eine mögliche Notabschaltung vorbereitet.",
+          then: [S("Dr. Vogel", "Gut. Herr Hollerbach ist auf dem Weg. Ich spreche die Banken an.")] },
+        { l: "Freitagabend. Das hat bis Montag Zeit, dann kommt ja der Patch.", fx: { vertrauen: -2, schaden: 1 }, time: 5,
+          lesson: "Aktiv ausgenutzte Lücken an der Außengrenze warten nicht aufs Wochenende. Angreifer bevorzugen genau diese Zeiten.",
+          then: [S("Dr. Vogel", "Montag? Bis Montag sind wir ein Fallbeispiel in der Presse. Wir handeln jetzt.")] },
+        { l: "Ich informiere nur den Hersteller. Die sind ja verantwortlich.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Der Hersteller liefert den Patch. Den Betrieb, die Risikoentscheidung und die Kommunikation verantworten wir selbst.",
+          then: [S("Dr. Vogel", "Der Hersteller betreibt nicht unser Netz. Wir führen.")] }
+      ]),
+      SET("esc")
+    ];
+    if (f.b2 && !f.review) return [
+      S("Dr. Vogel", "Die Gateways sind neu, die Geheimnisse gewechselt, der Angreifer ist draußen. Was lernen wir?"),
+      CH("Wie schließt du den Fall ab?", [
+        { l: "Management-Schnittstellen nie ins Internet, Notfallplan für Zero-Days mit vorab definierten Abschaltkriterien, unabhängige Integritätsprüfung, Inventar aller Geheimnisse auf Grenzgeräten, Überwachung unserer Angriffsfläche.", fx: { team: 2, vertrauen: 1 }, time: 45,
+          praise: "Nachhaltig gehärtet: Angriffsfläche, Notfallplan für Zero-Days, unabhängige Prüfung, Geheimnis-Inventar.",
+          then: [S("Dr. Vogel", "Und die Abschaltkriterien legen wir mit dem Vorstand vorab fest, nicht nachts um elf.")] },
+        { l: "Wir wechseln den Hersteller. Dann passiert das nicht mehr.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Jeder Hersteller hat Lücken. Entscheidend sind Angriffsfläche, Reaktionsfähigkeit und Notfallpläne, nicht das Logo.",
+          then: [S("Dr. Vogel", "Der nächste Hersteller hatte letztes Jahr drei solcher Lücken.")] },
+        { l: "Wir schaffen das VPN ab. Alle kommen ins Büro.", fx: { vertrauen: -1, team: -1 }, time: 10,
+          lesson: "Fernzugriff ist für den Betrieb nötig. Sicherer Zugang statt Verbot: weniger Angriffsfläche, starke Authentifizierung, Überwachung.",
+          then: [S("Dr. Vogel", "Und die Filialtechniker in 700 Banken? Fahren die jetzt alle nach Karlsruhe?")] }
+      ]),
+      SET("review"),
+      S("", "Samstagmorgen. Die Sonne geht über der Netzleitstelle auf. Montag kommt der Patch."),
+      { t: "end" }
+    ];
+    return [S("Dr. Vogel", "Der Krisenstab tagt. Sie führen operativ.")];
+
+  case "murat":
+    if (!f.z1) return [S("Murat", "Die Netzleitstelle. Ganz viele Kurven. Alle grün. Noch.")];
+    if (!f.murat) return [
+      S("Murat", "Ich hab was entdeckt: Die Management-Oberfläche der Gateways ist aus dem Internet erreichbar. Port 8443. Das war mal für den Hersteller-Support so eingerichtet."),
+      CH("Murat hat eine offene Flanke gefunden.", [
+        { l: "Sofort vom Internet trennen. Management nur noch aus dem internen Admin-Netz.", fx: { schaden: -1 }, time: 10, set: "mgmtOff",
+          praise: "Angriffsfläche sofort reduziert: Management-Oberfläche vom Internet getrennt.",
+          then: [S("Murat", "Erledigt. Ein Einfallstor weniger.")] },
+        { l: "Lassen. Der Hersteller-Support braucht den Zugang vielleicht heute Nacht.", time: 5,
+          lesson: "Management-Oberflächen gehören nie ins Internet. Für Herstellerzugriff gibt es kontrollierte, temporäre Wege.",
+          then: [S("Murat", "Okay ... aber wohl ist mir dabei nicht.")] }
+      ]),
+      SET("murat")
+    ];
+    return [S("Murat", f.b1 ? "Die Kurven werden wieder ruhiger." : "Ich halte die Netzleitstelle.")];
+
+  case "nadine":
+    if (!f.b1) return [S("Nadine", "Kundenbetreuung Banken. Freitagabend. Noch ruft keiner an.")];
+    if (!f.banks) return [
+      S("Nadine", "Jetzt rufen sie an. Die Filialtechniker kommen wegen der Mitigation teils nicht mehr rein. Drei Banken fragen, ob sie etwas melden müssen."),
+      CH("Was sagst du den Banken?", [
+        { l: "Ehrlich und konkret: Sicherheitslücke beim VPN-Hersteller, Mitigation aktiv, Kompromittierung wird geprüft. Feste Updates, Ersatzweg für dringende Wartung. Wir liefern alles für ihre DORA-Bewertung.", fx: { vertrauen: 1 }, time: 15,
+          praise: "Banken ehrlich informiert, mit Ersatzweg und Informationen für ihre DORA-Bewertung.",
+          then: [S("Nadine", "Damit kann ich arbeiten. Ich schicke die Textbausteine raus.")] },
+        { l: "Sag „technische Störung“. Von einer Sicherheitslücke muss keiner wissen.", fx: { vertrauen: -3 }, time: 5,
+          ko: "Am Montag steht die Lücke in allen Fachmedien, samt der Frage, warum FinOps von einer „Störung“ sprach. Drei Banken eskalieren an ihre Aufsicht. Du wirst vom Fall abgezogen.",
+          lesson: "Banken brauchen die echten Informationen für ihre eigenen Meldepflichten. Beschönigen bricht Vertrauen und Verträge.",
+          then: [S("Nadine", "Eine Störung? Die lesen auch die Herstellerwarnung ...")] },
+        { l: "Gar nichts sagen, bis wir alles wissen.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Schweigen erzeugt Unsicherheit und blockiert die Meldeprozesse der Banken. Vorläufige Information ist besser als keine.",
+          then: [S("Nadine", "Die rufen trotzdem an. Und ich habe nichts zu sagen.")] }
+      ]),
+      SET("banks")
+    ];
+    return [S("Nadine", "Die Banken bekommen stündlich ein Update. Die Lage ist ruhiger.")];
+
+  case "holl":
+    if (!f.esc) return [S("Hollerbach", "Dr. Vogel hat mich geweckt. Was ist los?")];
+    if (!f.b1) return [S("Hollerbach", "Wehren Sie erst die Welle ab. Dann reden wir über das Wochenende.")];
+    if (!f.vor) return [
+      S("Hollerbach", "Die Gateways sind vermutlich kompromittiert. Lassen wir das VPN übers Wochenende an oder nicht? Geben Sie mir eine Empfehlung."),
+      CH("Was empfiehlst du?", [
+        { l: "Notbetrieb: VPN nur für priorisierte Gruppen mit Zertifikat und MFA, über ein sauber neu aufgesetztes Gateway. Alles andere bleibt aus, bis der Neuaufbau fertig ist. Banken sind informiert.", fx: { vertrauen: 2 }, time: 20,
+          praise: "Risikobasierte Geschäftsentscheidung: Notbetrieb für das Nötigste, Rest bis zum Neuaufbau aus.",
+          then: [S("Hollerbach", "Abgewogen und begründet. So machen wir es.")] },
+        { l: "Alles wieder voll einschalten. Das Geschäft geht vor.", fx: { schaden: 3, vertrauen: -2 }, time: 5,
+          ko: "In der Nacht nutzt der Angreifer das noch gültige LDAP-Dienstkonto über das wieder geöffnete VPN. Am Sonntag findet das SOC ihn auf Servern im Kernnetz. Du wirst vom Fall abgezogen.",
+          lesson: "Ein kompromittiertes Grenzgerät wieder voll zu öffnen heißt, dem Angreifer die Tür aufzuhalten.",
+          then: [S("Hollerbach", "Wirklich? Mit Webshell auf dem Gerät?")] },
+        { l: "Bis Montag alles aus. Keine Ausnahmen, auch nicht für Notfälle.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Totale Abschaltung ohne Notfallzugang kann selbst zum Ausfall kritischer Dienste führen. Verhältnismäßig bleiben.",
+          then: [S("Hollerbach", "Und wenn am Sonntag ein Geldautomatennetz ausfällt? Wer wartet das dann?")] }
+      ]),
+      SET("vor")
+    ];
+    return [S("Hollerbach", "Ich bleibe erreichbar. Gute Nacht ist das jedenfalls keine.")];
+
+  case "kevin":
+    if (!f.z1) return [S("Kevin", "Nachtschicht in der Küche. Ich lese Sicherheitsforen. Für den Spaß.")];
+    if (!f.kevin) return [
+      S("Kevin", "Chef! Im Austausch des CERT-Verbunds und auf Fachseiten posten Forscher gerade Indikatoren zu der Lücke: IP-Adressen, Pfade, Namen von Webshells."),
+      CH("Kevin hat Threat Intelligence gefunden.", [
+        { l: "Super! Gib sie Tobias und Lena, wir gleichen sie mit unseren Logs ab. Und wir teilen unsere eigenen Funde über den CERT-Verbund.", fx: { beweise: 2, team: 1 }, time: 5, set: "kevinHint",
+          praise: "Externe Threat Intelligence genutzt und eigene Funde zurück in die Community gegeben.",
+          then: [S("Kevin", "Schon unterwegs!")] },
+        { l: "Aus Foren? Das ist nicht verlässlich.", time: 2,
+          lesson: "Indikatoren aus vertrauenswürdigen Austauschgruppen sind bei Zero-Days oft schneller als der Hersteller. Prüfen, aber nutzen.",
+          then: [S("Kevin", "Das ist der CERT-Verbund, nicht irgendein Forum ...")] }
+      ]),
+      SET("kevin")
+    ];
+    return [S("Kevin", "Ich habe gelernt: Bei einem Zero-Day hilft die Community schneller als jeder Patch.")];
+  }
+  return [S("", "...")];
+}
+
+function interact5(x, y) {
+  const ch = tileAt(x, y), f = G.flags, room = roomAt(x, y);
+  if ((ch === "F" || ch === "S") && room === "Firewall-Raum") {
+    if (!f.z1) return [S("", "Die VPN-Gateways. Zwei Kisten, an denen 9.000 Menschen hängen.")];
+    if (!f.b1) {
+      if (!f.mit) return [S("Jonas", "Moment! Erst müssen wir klären, wie wir mit der Mitigation umgehen.")];
+      if (!f.esc) return [S("Jonas", "Ich ändere nachts nichts an der Produktion, solange der Krisenstab nicht Bescheid weiß. Dr. Vogel ist unten.")];
+      const late = G.time >= 24 * 60 + 15 ? [S("Jonas", "Es ist nach Mitternacht. Die Scans sind längst in echte Angriffe übergegangen."), FX({ schaden: 1 }),
+        { t: "lesson", text: "Bei aktiv ausgenutzten Lücken zählt jede Stunde. Abstimmung muss schnell gehen." }] : [];
+      return late.concat([
+        S("Jonas", "Da! Die Angriffe werden konkreter. Dutzende Exploit-Versuche pro Sekunde."),
+        BAT("b1"),
+        SET("b1"),
+        S("Jonas", "Die Welle ist abgewehrt. Aber Tobias will dich dringend sprechen."),
+        S("Lena", "Und die Banken melden sich. Nadine in der Netzleitstelle braucht Unterstützung.")
+      ]);
+    }
+    if (!comms5()) return [S("Jonas", "Bevor wir die Gateways neu aufsetzen: Wir brauchen Tobias' Befund, die Entscheidung des Vorstands und die Banken müssen Bescheid wissen.")];
+    if (!f.b2) return [
+      S("", "Jonas, Lena und Tobias stehen bereit. Zwei Gateways, ein sauberes Image, eine lange Liste von Geheimnissen."),
+      BAT("b2"),
+      SET("b2"),
+      S("Tobias", "Neu aufgesetzt, alle Geheimnisse gewechselt, keine Bewegung im Netz. Er ist draußen."),
+      S("Tobias", "Dr. Vogel wartet im Krisenstab.")
+    ];
+    return [S("", "Die neuen Gateways summen leise. Alle Anzeigen grün.")];
+  }
+  if (ch === "M") {
+    if (f.b1 && !f.call) return [
+      { t: "sfx", n: "alarm" },
+      S("Telefon", "RIIING! Das Notfallteam des Herstellers ruft über die hinterlegte Support-Nummer zurück."),
+      S("Hersteller", "Bastion PSIRT hier. Wir haben einen Vorab-Hotfix. Noch nicht vollständig getestet, aber er schließt die Lücke."),
+      CH("Wie gehst du mit dem Hotfix um?", [
+        { l: "Nur aus dem offiziellen Portal laden, die Prüfsumme gegen den Hersteller-Hinweis prüfen, zuerst auf dem neu aufgesetzten Gateway testen, dann gestaffelt ausrollen.", fx: { beweise: 1 }, time: 15,
+          praise: "Hotfix aus offizieller Quelle, mit Prüfsumme und gestaffeltem Rollout eingespielt.",
+          then: [S("Hersteller", "Sehr gut. Genau so empfehlen wir es.")] },
+        { l: "Sofort auf beiden produktiven Gateways einspielen. Je schneller, desto besser.", fx: { schaden: 1 }, time: 5,
+          lesson: "Ungetestete Hotfixes auf allen Produktivgeräten gleichzeitig können den Betrieb lahmlegen. Erst testen, dann gestaffelt.",
+          then: [S("Jonas", "Gateway zwei startet nicht mehr sauber. Zum Glück läuft eins noch.")] },
+        { l: "Ablehnen. Wir warten auf den regulären Patch am Montag.", fx: { schaden: 1 }, time: 5,
+          lesson: "Bei aktiver Ausnutzung ist ein offizieller, geprüfter Hotfix meist besser als zwei weitere Tage Angriffsfläche.",
+          then: [S("Hersteller", "Ihre Entscheidung. Montag kommt der Patch.")] }
+      ]),
+      SET("call")
+    ];
+    return undefined;
+  }
+  return undefined;
+}
+
+const BATTLES5 = {
+  b1: {
+    name: "EISBRECHER", sub: "ZERO-DAY - AKTIVE AUSNUTZUNG", hp: 100, model: "ice",
+    hpBonus: () => (G.flags.badmit ? 20 : 0) - (G.flags.mgmtOff ? 15 : 0) + (G.flags.rash ? 10 : 0),
+    intro: ["EISBRECHER rammt die VPN-Gateways!", "Kein Patch in Sicht. Halte die Außengrenze!"],
+    moves: [
+      { n: "Mitigation aktivieren", key: "mit", who: "Jonas", d: "Die Hersteller-Mitigation scharf schalten.",
+        act: B => B.used.mit ? { dmg: 0, msg: ["Die Mitigation ist aktiv."] }
+          : (B.used.mit = 1, { dmg: G.flags.badmit ? 20 : 35, msg: [G.flags.badmit ? "Effektiv, aber spät. Die Verzögerung hat Zeit gekostet." : "Sehr effektiv! Der verwundbare Pfad ist blockiert."], praise: "Hersteller-Mitigation aktiviert." }) },
+      { n: "Management abschotten", key: "mgmt", who: "Jonas", d: "Die Verwaltungsoberfläche nur noch intern erreichbar.",
+        act: B => B.used.mgmt ? { dmg: 0, msg: ["Die Oberfläche ist schon abgeschottet."] }
+          : (B.used.mgmt = 1, { dmg: G.flags.mgmtOff ? 15 : 30, msg: [G.flags.mgmtOff ? "Murat hat das schon erledigt. Ein bisschen hilft es trotzdem." : "Sehr effektiv! Ein Einfallstor weniger."] }) },
+      { n: "IPS-Signatur scharf", key: "ips", who: "Lena", d: "Bekannte Exploit-Muster im Netzwerk blocken.",
+        act: B => B.used.ips ? { dmg: 0, msg: ["Die Signatur ist aktiv."] }
+          : (B.used.ips = 1, { dmg: 22, msg: ["Effektiv! Die meisten Exploit-Pakete prallen ab."] }) },
+      { n: "Angreifer-IPs sperren", who: "Lena", d: "Bekannte Quell-Adressen blocken.",
+        act: () => ({ dmg: 13, msg: ["Lena sperrt 300 Adressen. Es kommen 300 neue. Aber jede Sperre hilft ein bisschen."] }) },
+      { n: "VPN-Notabschaltung", who: "Du", d: "Beide Gateways sofort vom Netz.",
+        act: () => ({ dmg: 40, fx: { vertrauen: -2 }, set: "vpnoff", msg: ["Die Gateways sind vom Netz. Der Angriff läuft ins Leere ...", "... und 700 Banken haben keine Fernwartung mehr."],
+          lesson: "Notabschaltung wirkt, aber ohne abgestimmte Entscheidung trifft sie Kunden hart. Abschaltkriterien vorab festlegen." }) },
+      { n: "Auf den Patch warten", who: "Du", d: "Montag kommt der Patch. Bis dahin aushalten.",
+        act: () => ({ dmg: 0, fx: { schaden: 1 }, msg: ["Du wartest. EISBRECHER nicht."],
+          lesson: "Abwarten ist bei aktiver Ausnutzung keine Strategie." }) }
+    ],
+    enemy: B => [
+      { w: B.used.mit ? 1 : 3, text: "EISBRECHER feuert eine Exploit-Welle auf die Gateways!", fx: { schaden: 1 } },
+      { w: (B.used.mgmt || G.flags.mgmtOff) ? 0 : 2, text: "EISBRECHER lädt über die Management-Oberfläche eine Webshell hoch!", heal: 15 },
+      { w: (B.used.mit && B.used.ips) ? 0 : 2, text: "EISBRECHER liest die Konfiguration samt Zugangsdaten aus!", heal: 10 },
+      { w: 1, text: "EISBRECHER scannt von 4.000 Adressen gleichzeitig ..." }
+    ],
+    win: ["EISBRECHER zerschellt an der Außengrenze!", "Dein Team erhält 450 Erfahrungspunkte. Und Eiskaffee."]
+  },
+  b2: {
+    name: "APT EISBRECHER", sub: "IMPLANTAT - ENDGEGNER", hp: 150, model: "iceBoss",
+    hpBonus: () => (G.flags.trusted ? 30 : 0) + (G.flags.partial ? 20 : 0),
+    intro: ["APT EISBRECHER hat sich in den Gateways eingefroren!", "Webshell, gestohlene Geheimnisse, Wege ins Netz. Taue ihn vollständig auf!"],
+    moves: [
+      { n: "Gateways neu aufsetzen", key: "re", who: "Jonas", d: "Sauberes Image, saubere Konfiguration. Nichts übernehmen.",
+        act: B => B.used.re ? { dmg: 0, msg: ["Die Gateways sind schon neu."] }
+          : (B.used.re = 1, { dmg: 40, msg: ["Sehr effektiv! Webshell und Implantat sind mit dem alten System verschwunden."], praise: "Kompromittierte Gateways aus sauberem Image neu aufgesetzt." }) },
+      { n: "Geheimnisse wechseln", key: "sec", who: "Lena", d: "LDAP-Dienstkonto, Zertifikate, lokale Admins.",
+        act: B => B.used.sec ? { dmg: 0, msg: ["Alle Geheimnisse sind schon neu."] }
+          : (B.used.sec = 1, { dmg: 35, msg: ["Sehr effektiv! Die gestohlenen Schlüssel sind wertlos."], praise: "Alle abgeflossenen Geheimnisse gewechselt." }) },
+      { n: "Externe Prüfung", key: "ext", who: "Tobias", d: "Unabhängig prüfen statt dem Herstellertool zu glauben.",
+        act: B => B.used.ext ? { dmg: 0, msg: ["Die externe Prüfung ist abgeschlossen."] }
+          : (B.used.ext = 1, { dmg: 25, fx: { beweise: 1 }, msg: ["Effektiv! Tobias findet eine zweite, versteckte Hintertür."] }) },
+      { n: "Bewegungen jagen", who: "Tobias", d: "Anmeldungen aus dem VPN ins interne Netz prüfen.",
+        act: () => ({ dmg: 15, fx: { beweise: 1 }, msg: ["Tobias verfolgt eine Anmeldung aus dem VPN-Adressbereich auf einen Dateiserver und beendet sie."] }) },
+      { n: "Herstellertool erneut", who: "Jonas", d: "Das Integritäts-Prüftool noch einmal laufen lassen.",
+        act: () => ({ dmg: 0, msg: ["Alles grün!", "... sagt das Tool auf dem kompromittierten Gerät. Natürlich."],
+          lesson: "Ein kompromittiertes System kann sein eigenes Prüfergebnis fälschen." }) },
+      { n: "Normalbetrieb freigeben", who: "Du", d: "VPN wieder für alle öffnen.",
+        act: B => B.hp > 45
+          ? { dmg: 0, fx: { schaden: 1 }, msg: ["Zu früh! Der Angreifer hat noch einen Weg und nutzt ihn sofort."], lesson: "Erst neu aufsetzen und alle Geheimnisse wechseln, dann den Normalbetrieb freigeben." }
+          : { dmg: 60, msg: ["Saubere Gateways, neue Schlüssel, alle Wege zu. Das VPN ist wieder für alle offen!"], praise: "Normalbetrieb erst nach vollständiger Bereinigung freigegeben." } }
+    ],
+    enemy: B => [
+      { w: B.used.re ? 0 : 3, text: "APT EISBRECHER meldet sich über die Webshell an!", heal: 15 },
+      { w: B.used.sec ? 0 : 3, text: "APT EISBRECHER nutzt das LDAP-Dienstkonto im internen Netz!", fx: { schaden: 1 } },
+      { w: B.used.ext ? 0 : 1, text: "APT EISBRECHER überlebt im Flash-Speicher einen Neustart!", heal: 10 },
+      { w: 1, text: "APT EISBRECHER versteckt sich im Rauschen des Wochenendverkehrs ..." }
+    ],
+    win: ["APT EISBRECHER ist geschmolzen!", "Dein Team erhält 999 Erfahrungspunkte. Und ein freies Wochenende. Fast."]
+  }
+};
+
+CASES.eisbrecher = {
+  id: "eisbrecher", num: 5, title: "EISBRECHER", sub: "Zero-Day an der VPN-Firewall", diff: 3,
+  desc: "Fr, 22:10 Uhr. Kritische Lücke in der VPN-Firewall, aktiv ausgenutzt, kein Patch. Abschalten? Abwarten? Und wem traust du noch?",
+  saveKey: "csirt_case_eisbrecher_v1", start: { time: 22 * 60 + 10, x: 16, y: 9, dir: 1, days: ["Fr", "Sa", "So", "Mo"] },
+  fastLimit: 24 * 60 + 6 * 60, fastText: "Wer vor Samstag, 06:00 Uhr fertig wird, bekommt einen Tempo-Bonus.",
+  map: [
+    "##################################",
+    "#==VVVVVVVVVVVVVV===W#FFFFFFFFFFF#",
+    "#....................#,,,,,,,,,,,#",
+    "#..DDDD....DDDD......#,FF,,FF,,FF#",
+    "#....................#,,,,,,,,,,,#",
+    "#..DDDD....DDDD..B...#,FF,,FF,,SS#",
+    "#....................#,,,,,,,,,,,#",
+    "#P..................P#,,,,,,,,,,,#",
+    "##########d################d######",
+    "#................................#",
+    "#....MM..........................#",
+    "####d########d#######d#######d####",
+    "#........#.......#........#,K,,,,#",
+    "#.DD..DD.#.DD..B.#.TTTTTT.#,,,,,,#",
+    "#........#.......#.TTTTTT.#,TT,,C#",
+    "#........#.......#........#,TT,,C#",
+    "#P......P#P.....P#P......P#,,,,,,#",
+    "##################################"
+  ],
+  rooms: [
+    { n: "Netzleitstelle", x0: 1, y0: 1, x1: 20, y1: 7 }, { n: "Firewall-Raum", x0: 22, y0: 1, x1: 32, y1: 7 },
+    { n: "SOC", x0: 1, y0: 12, x1: 8, y1: 16 }, { n: "Forensik", x0: 10, y0: 12, x1: 16, y1: 16 },
+    { n: "Krisenstab", x0: 18, y0: 12, x1: 25, y1: 16 }, { n: "Küche", x0: 27, y0: 12, x1: 32, y1: 16 }
+  ],
+  floors: { Netzleitstelle: ["#2f3b55", "#2a354d"], "Firewall-Raum": ["#c9d3de", "#bcc7d3"] },
+  wallColor: "#d6dbe3",
+  alarmPos: [[10, 4], [27, 4]],
+  videoWall: f => f.b2 ? "Netzleitstelle: VPN-Gateways neu, Anmeldungen normal, Angriffe geblockt." : f.b1 ? "Netzleitstelle: Exploit-Versuche abgewehrt. Aber was ist schon drin?" : "Netzleitstelle: Eingehende Verbindungen auf Port 443 der Gateways: steil nach oben.",
+  npcs: NPCS5, npcNew: npcNew5, talk: talk5, interact: interact5, objectives: objectives5, battles: BATTLES5,
+  titleModel: "ice",
+  handbook: f => !f.b1 ? "Zero-Day, Kapitel 1: Exposition prüfen, Mitigation einspielen, Angriffsfläche reduzieren, Logs sichern, Notabschaltung als Geschäftsentscheidung vorbereiten."
+    : !f.b2 ? "Zero-Day, Kapitel 2: Grenzgeräte als kompromittiert annehmen, bis das Gegenteil unabhängig bewiesen ist. Alle Geheimnisse darauf sind verbrannt."
+    : "Zero-Day, Kapitel 3: Neu aufsetzen, Geheimnisse wechseln, Notfallplan mit Abschaltkriterien, Management nie ins Internet.",
+  intro: n => [
+    S("", "Freitag, 22:10 Uhr. Netzleitstelle der FinOps Rechenzentrum AG."),
+    S("", "Du bist " + n + ", CSIRT-Manager. Dein Wochenende hat genau 70 Minuten gehalten."),
+    DIFF(),
+    { t: "sfx", n: "alarm" },
+    S("Lena", "Komm ins SOC, unten links. Der Hersteller unserer VPN-Firewall hat eine Notfallwarnung rausgeschickt."),
+    HINT()
+  ],
+  marks: f => { const m = []; if ((f.mit && f.esc && !f.b1) || (comms5() && !f.b2)) m.push([23, 3, 2.0]); if (f.b1 && !f.call) m.push([5, 10, 1.5]); return m; },
+  alarm: f => ({ active: f.z1 && !f.b2, critical: f.z1 && !f.b1, color: (f.z1 && !f.b1) ? undefined : "#2ee6ff" }),
+  dawn: f => f.review ? 0.8 : 0
+};
+
+/* ================= FALL 6: HYDRA (DDoS mit Erpressung und Ablenkungsmanöver) ================= */
+const NPCS6 = [
+  { id: "murat", name: "Murat Aydin", role: "Leitwarte", x: 7, y: 4, dir: 0 },
+  { id: "kevin", name: "Kevin", role: "Praktikant", x: 12, y: 8, dir: 0 },
+  { id: "yusuf", name: "Yusuf Demir", role: "Leiter Kunden-Hotline", x: 25, y: 4, dir: 0 },
+  { id: "sabine", name: "Sabine Roth", role: "Pressestelle", x: 18, y: 6, dir: 0 },
+  { id: "ines", name: "Ines Novak", role: "Netzwerk / Edge", x: 4, y: 15, dir: 0 },
+  { id: "lena", name: "Lena Brandt", role: "SOC-Lead", x: 13, y: 15, dir: 1 },
+  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 15, y: 13, dir: 0 },
+  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 22, y: 16, dir: 1 },
+  { id: "holl", name: "Frank Hollerbach", role: "Vorstand", x: 31, y: 16, dir: 1 }
+];
+function comms6() { const f = G.flags; return !!(f.twist && f.hot && f.press && f.vor && f.call); }
+function npcNew6(n) {
+  const f = G.flags;
+  switch (n.id) {
+    case "murat": return !f.h1;
+    case "ines": return f.h1 && !f.prov;
+    case "vogel": return (f.h1 && !f.esc) || (f.b2 && !f.review);
+    case "lena": return f.b1 && !f.twist;
+    case "yusuf": return f.b1 && !f.hot;
+    case "sabine": return f.b1 && !f.press;
+    case "holl": return f.b1 && f.esc && !f.vor;
+    case "kevin": return f.h1 && !f.kevin;
+  }
+  return false;
+}
+function objectives6() {
+  const f = G.flags, o = [];
+  if (!f.h1) o.push("Murat in der Leitwarte (oben links) hat Alarm geschlagen.");
+  else if (!f.b1) {
+    if (!f.prov) o.push("Abwehr planen: Ines im Edge-Raum (unten links).");
+    if (!f.esc) o.push("Eskaliere an Dr. Vogel (Krisenstab, unten Mitte).");
+    if (f.prov && f.esc) o.push("Die Flut bändigen: an den Edge-Routern im Edge-Raum.");
+  } else if (!comms6()) {
+    if (!f.twist) o.push("Lena hat im SOC etwas Beunruhigendes gesehen (unten, zweiter Raum).");
+    if (!f.hot) o.push("Die Hotline läuft über: Yusuf (Hotline, oben rechts).");
+    if (!f.press) o.push("Presseanfrage: Sabine (Hotline, oben rechts).");
+    if (!f.vor) o.push("Lösegeldfrage: Herr Hollerbach (Vorstand, unten rechts). Frist 12:00 Uhr!");
+    if (f.twist && !f.call) o.push("Das Telefon an deinem Platz klingelt (Flur rechts).");
+  } else if (!f.b2) o.push("Den zweiten Kopf abschlagen: Online-Banking-Konsole im SOC.");
+  else if (!f.review) o.push("Nachbereitung mit Dr. Vogel (Krisenstab, unten Mitte).");
+  if (f.h1 && !f.kevin) o.push("(Optional) Kevin in der Leitwarte hat etwas gefunden.");
+  return o;
+}
+
+function talk6(id) {
+  const f = G.flags, N = G.name;
+  switch (id) {
+  case "murat":
+    if (!f.h1) return [
+      S("Murat", "Schau dir die Kurve an! Seit 08:02 Uhr: 380 Gigabit pro Sekunde auf die Adressen des Online-Bankings. Die Login-Seite ist für 700 Banken nicht erreichbar."),
+      S("Murat", "Und heute ist Monatsletzter. Gehaltstag. Millionen Menschen wollen gerade ihren Kontostand sehen."),
+      S("Murat", "Und das hier kam an security@: „Das war eine Kostprobe. 15 BTC bis 12:00 Uhr, sonst am Montag mit 1 Terabit. HYDRA.“"),
+      CH("Was tust du als Erstes?", [
+        { l: "DDoS-Notfallplan aktivieren: Provider und Scrubbing-Dienst alarmieren, Erpressermail sichern, Krisenstab, Banken vorwarnen. Nicht antworten, nicht zahlen.", fx: { beweise: 1 }, time: 10,
+          praise: "DDoS-Notfallplan sofort aktiviert, Erpressung gesichert statt beantwortet.",
+          then: [S("Murat", "Ines im Edge-Raum steht schon mit dem Provider in Kontakt.")] },
+        { l: "Den Erpressern antworten und verhandeln. Damit gewinnen wir Zeit.", fx: { vertrauen: -1 }, time: 15, set: "talked",
+          lesson: "Antworten zeigt den Tätern, dass sie ein zahlungsbereites Ziel gefunden haben. Keine Verhandlungen im Alleingang.",
+          then: [S("Murat", "Die Antwort kam in einer Minute: „Jetzt 20 BTC.“ Na toll.")] },
+        { l: "Mehr Bandbreite beim Provider bestellen. Dann läuft das schon wieder.", fx: { schaden: 1 }, time: 30,
+          lesson: "Gegen 380 Gbit/s kauft man sich nicht schnell frei. Wirksam sind Scrubbing, Filter und abgestimmte Notfallpläne mit dem Provider.",
+          then: [S("Murat", "Der Provider lacht. Lieferzeit für mehr Bandbreite: sechs Wochen.")] }
+      ]),
+      S("Murat", "Ines sitzt im Edge-Raum unten links. Dr. Vogel ist im Krisenstab."),
+      SET("h1")
+    ];
+    if (f.b1) return [S("Murat", "Die Kurve ist wieder flach. Ich schaue trotzdem alle zehn Sekunden hin.")];
+    return [S("Murat", "380 Gigabit. Ich habe so eine Kurve noch nie live gesehen.")];
+
+  case "ines":
+    if (!f.h1) return [S("Ines", "Edge-Raum. Hier kommt das Internet rein. Heute leider sehr viel davon.")];
+    if (!f.prov) return [
+      S("Ines", "Der Provider bietet zwei Wege an: Umleitung über sein Scrubbing-Center per BGP, das dauert 20 Minuten. Oder ein Blackhole für unsere Adressen, das geht sofort."),
+      CH("Welchen Weg wählst du?", [
+        { l: "Umleitung ins Scrubbing-Center. Bis es greift, als Brücke Rate-Limits und Filter auf bekannte Angriffsmuster.", fx: { schaden: -1 }, time: 20,
+          praise: "Scrubbing-Umleitung gewählt, mit Filtern als Überbrückung.",
+          then: [S("Ines", "Die BGP-Umleitung läuft. Sag Bescheid, dann schalten wir an den Edge-Routern scharf.")] },
+        { l: "Blackhole für die Online-Banking-Adressen. Sofort.", fx: { vertrauen: -1 }, time: 5, set: "provBad",
+          lesson: "Ein Blackhole verwirft allen Verkehr zum Ziel, auch den echten Kunden. Damit vollendet man den Angriff selbst. Nur als letzte Notlösung.",
+          then: [S("Ines", "Blackhole aktiv. Der Angriff ist weg. Und unsere Kunden auch. Ich bereite parallel doch das Scrubbing vor.")] },
+        { l: "Alles außer Deutschland blocken. Die Angreifer sitzen eh im Ausland.", fx: { vertrauen: -1 }, time: 10, set: "provBad",
+          lesson: "Botnetze stecken auch in deutschen Heimroutern. Geo-Blocking trifft vor allem Kunden im Ausland, nicht die Angreifer.",
+          then: [S("Ines", "Der Verkehr sinkt um zwölf Prozent. Und Kunden im Urlaub kommen nicht mehr an ihr Konto.")] }
+      ]),
+      SET("prov")
+    ];
+    if (f.b1) return [S("Ines", "Wir bleiben im Scrubbing-Modus, bis der Provider Entwarnung gibt.")];
+    return [S("Ines", f.esc ? "Bereit. Die Edge-Router stehen hier im Raum." : "Ich will erst grünes Licht vom Krisenstab, bevor ich das Routing umbaue.")];
+
+  case "vogel":
+    if (!f.h1) return [S("Dr. Vogel", "Gehaltstag. Der Tag, an dem bloß nichts passieren darf.")];
+    if (!f.esc) return [
+      S("Dr. Vogel", "Online-Banking für 700 Banken down, und eine Erpressung? Wie gehen wir vor?"),
+      CH("Wie eskalierst du?", [
+        { l: "Krisenstab jetzt. Die Banken sofort informieren, ein kritischer Dienst ist nicht verfügbar und sie brauchen das für ihre DORA-Bewertung. Strafanzeige wegen Erpressung.", fx: { vertrauen: 2 }, time: 15,
+          praise: "Früh eskaliert, Banken informiert, Strafanzeige gestellt.",
+          then: [S("Dr. Vogel", "Gut. Ich halte die Banken im Stundentakt auf dem Laufenden.")] },
+        { l: "Das ist nur eine Überlastung, kein Sicherheitsvorfall.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "Ein gezielter DDoS mit Erpressung ist ein Sicherheitsvorfall. Ausfälle kritischer Dienste sind für die Banken meldepflichtrelevant.",
+          then: [S("Dr. Vogel", "Eine Überlastung mit Erpresserbrief? Nein.")] },
+        { l: "Erst nach 12:00 Uhr entscheiden. Vielleicht hören die ja von selbst auf.", fx: { vertrauen: -1, schaden: 1 }, time: 20,
+          lesson: "Abwarten verlängert den Ausfall. Notfallpläne gibt es, damit man sofort handeln kann.",
+          then: [S("Dr. Vogel", "Die hören nicht auf. Die warten auf Geld.")] }
+      ]),
+      SET("esc")
+    ];
+    if (f.b2 && !f.review) return [
+      S("Dr. Vogel", "Beide Köpfe sind abgeschlagen. Was ändern wir?"),
+      CH("Wie schließt du den Fall ab?", [
+        { l: "DDoS-Schutz dauerhaft aktiv halten, Notfallpläne mit dem Provider üben, Bot-Schutz und risikobasierte Login-Prüfung. Und die wichtigste Lehre: Bei einem DDoS schaut das SOC trotzdem überall hin.", fx: { team: 2, vertrauen: 1 }, time: 45,
+          praise: "DDoS-Schutz verstetigt, Login abgesichert und die Ablenkungsgefahr fest verankert.",
+          then: [S("Dr. Vogel", "Und Kevin bekommt einen Platz im Threat-Intelligence-Team.")] },
+        { l: "Mehr Bandbreite kaufen. Dann sind wir sicher.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Angreifer skalieren billiger als Bandbreite. Schutz braucht Scrubbing, Filter und Erkennung, nicht nur dickere Leitungen.",
+          then: [S("Dr. Vogel", "HYDRA hat 1 Terabit angekündigt. So viel Bandbreite kaufen wir nie.")] },
+        { l: "Nächstes Mal zahlen wir einfach. Das wäre billiger gewesen.", fx: { vertrauen: -2 }, time: 10,
+          lesson: "Zahlen garantiert nichts, finanziert die nächste Welle und macht uns zum Ziel für Nachahmer.",
+          then: [S("Dr. Vogel", "Und dann? Jeden Monat 15 Bitcoin?")] }
+      ]),
+      SET("review"),
+      S("", "Freitagabend. Die Gehälter sind auf den Konten. Die Kurve in der Leitwarte ist flach."),
+      { t: "end" }
+    ];
+    return [S("Dr. Vogel", "Der Krisenstab tagt. Sie führen operativ.")];
+
+  case "lena":
+    if (!f.b1) return [S("Lena", "Alle starren auf die DDoS-Kurve. Ich schaue mir lieber die Logs an, die sonst keiner ansieht.")];
+    if (!f.twist) return [
+      S("Lena", "Während alle auf den DDoS geschaut haben: Zwischen 08:20 und 09:40 Uhr gab es 1,2 Millionen Login-Versuche auf das Online-Banking. Mit geleakten Zugangsdaten."),
+      S("Lena", "340 Anmeldungen waren erfolgreich. Bei zwölf Konten wurden neue Überweisungsempfänger angelegt. Der DDoS war die Ablenkung."),
+      ...(f.kevinHint ? [S("Lena", "Kevin hatte recht: Im Telegram-Kanal stand „Kopf zwei um 08:20“. Ohne ihn hätte ich nicht so früh gesucht."), FX({ beweise: 1 })] : []),
+      CH("Was tust du?", [
+        { l: "Ablenkung erkannt: betroffene Konten über die Banken sperren lassen, laufende Überweisungen prüfen, die Banken sofort informieren, den Bot-Schutz verschärfen.", fx: { beweise: 1 }, time: 15,
+          praise: "Ablenkungsmanöver erkannt und die eigentliche Attacke auf Kundenkonten sofort adressiert.",
+          then: [S("Lena", "Die Liste der 340 Konten ist an die Banken raus. Jetzt müssen wir den Angriff stoppen.")] },
+        { l: "Kundenkonten sind Sache der Banken. Wir sind nur der Dienstleister.", fx: { vertrauen: -2, schaden: 1 }, time: 5,
+          lesson: "Wir betreiben die Plattform. Die Erkennung liegt bei uns, und die Banken brauchen sofort unsere Informationen, um ihre Kunden zu schützen.",
+          then: [S("Lena", "Die Banken sehen das aber nicht. Wir schon.")] },
+        { l: "Alle Online-Banking-Zugänge sperren. Vier Millionen Kunden. Sicher ist sicher.", fx: { vertrauen: -2 }, time: 10,
+          lesson: "Eine Massensperre trifft Millionen Unbeteiligte, ausgerechnet am Gehaltstag. Gezielt die betroffenen Konten sperren.",
+          then: [S("Lena", "Vier Millionen gesperrte Zugänge? Damit vollenden wir den DDoS selbst. Ich sperre gezielt.")] }
+      ]),
+      SET("twist")
+    ];
+    if (f.b2) return [S("Lena", "Ich habe eine neue Regel: Wenn alle nach links schauen, schaue ich nach rechts.")];
+    return [S("Lena", comms6() ? "Die Online-Banking-Konsole steht hier im SOC. Los geht's." : "Ich halte die Konten im Blick.")];
+
+  case "tobias":
+    if (f.b2) return [S("Tobias", "Ich habe die Login-Muster für das LKA aufbereitet. Ein schönes Botnetz.")];
+    if (f.twist) return [S("Tobias", "Ich gleiche die erfolgreichen Logins mit bekannten Datenlecks ab. Fast alle Passwörter stammen aus einem Shop-Leak von 2024.")];
+    return [S("Tobias", "Ein DDoS hinterlässt kaum Spuren. Ich schaue trotzdem, was darunter passiert.")];
+
+  case "yusuf":
+    if (!f.b1) return [S("Yusuf", "Die Hotline-Warteschlange: 3.000 Anrufe. Am Gehaltstag.")];
+    if (!f.hot) return [
+      S("Yusuf", "Die Leute wollen wissen, ob ihr Gehalt da ist. Und erste Trittbrettfahrer rufen Kunden an: „Ihr Konto ist gehackt, nennen Sie uns Ihre TAN.“"),
+      CH("Was sagt die Hotline?", [
+        { l: "Ansage mit ehrlicher Lage: Angriff auf das Online-Banking, Gehälter sind gebucht, Konten sicher. Und: Wir fragen nie nach PIN oder TAN. Die Banken bekommen Textbausteine.", fx: { vertrauen: 1 }, time: 15,
+          praise: "Ehrliche Kundenkommunikation mit Warnung vor Trittbrettfahrern.",
+          then: [S("Yusuf", "Die Warteschlange halbiert sich in zehn Minuten.")] },
+        { l: "Ansage: „Wegen Wartungsarbeiten derzeit nicht erreichbar.“", fx: { vertrauen: -3 }, time: 5,
+          ko: "Eine Stunde später berichten alle Nachrichtenportale über den Angriff, samt Screenshot der „Wartungs“-Ansage. Die Banken sind außer sich. Du wirst vom Fall abgezogen.",
+          lesson: "Eine falsche Ansage fliegt bei einem öffentlichen Ausfall sofort auf. Ehrlichkeit ist die einzige Option.",
+          then: [S("Yusuf", "Wartungsarbeiten? Am Gehaltstag um 8 Uhr? Das glaubt keiner.")] },
+        { l: "Die Hotline schließen. Die Leute sollen es später nochmal versuchen.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Gerade in der Krise brauchen Kunden einen Ansprechpartner. Eine geschlossene Hotline treibt sie zu Betrügern.",
+          then: [S("Yusuf", "Geschlossen. Jetzt rufen sie direkt in den Filialen an.")] }
+      ]),
+      SET("hot")
+    ];
+    return [S("Yusuf", "Die Ansage läuft. Die Warteschlange ist beherrschbar.")];
+
+  case "sabine":
+    if (!f.b1) return [S("Sabine", "Die ersten Journalisten rufen an. Ich vertröste sie.")];
+    if (!f.press) return [
+      S("Sabine", "Eine Gruppe namens HYDRA brüstet sich auf Telegram mit dem Angriff. Drei Zeitungen wollen eine Stellungnahme."),
+      CH("Was sagt die Pressestelle?", [
+        { l: "Freigegebenes Statement: gezielter Überlastungsangriff, Online-Banking wiederhergestellt, Konten und Gehälter sicher, Ermittlungsbehörden eingeschaltet. Keine Spekulation über Täter.", fx: { vertrauen: 1 }, time: 15,
+          praise: "Sachliches Statement ohne Spekulation über die Täter.",
+          then: [S("Sabine", "Sauber. Damit kann ich arbeiten.")] },
+        { l: "Sag, wir sind nicht betroffen. Das war ein Problem beim Provider.", fx: { vertrauen: -3 }, time: 5,
+          ko: "HYDRA veröffentlicht Screenshots der ausgefallenen Login-Seite mit FinOps-Logo. Das Dementi wird zur Schlagzeile. Du wirst vom Fall abgezogen.",
+          lesson: "Falsche Dementis bei öffentlich sichtbaren Ausfällen zerstören jede Glaubwürdigkeit.",
+          then: [S("Sabine", "Die haben Screenshots mit unserem Logo ...")] },
+        { l: "Sag, dahinter steckt ein ausländischer Staat. Das klingt nach Größe.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "Zuordnung der Täter ist Sache der Ermittler. Spekulationen schaden der Glaubwürdigkeit und können Ermittlungen stören.",
+          then: [S("Sabine", "Haben wir dafür irgendeinen Beleg? Nein. Dann sage ich das nicht.")] }
+      ]),
+      SET("press")
+    ];
+    return [S("Sabine", "Das Statement ist raus. Die Berichte sind sachlich.")];
+
+  case "holl":
+    if (!f.esc) return [S("Hollerbach", "Ich höre von Problemen mit dem Online-Banking? Bitte über Dr. Vogel.")];
+    if (!f.b1) return [S("Hollerbach", "Erst muss das Online-Banking wieder laufen. Dann reden wir über das Geld.")];
+    if (!f.vor) return [
+      S("Hollerbach", "Die wollen 15 Bitcoin, etwa 900.000 Euro. Ein Tag Ausfall kostet uns und die Banken mehr. Sollen wir zahlen?" + (f.talked ? " Und nachdem wir geantwortet haben, wollen sie jetzt sogar 20." : "")),
+      CH("Was empfiehlst du?", [
+        { l: "Nicht zahlen: keine Garantie, das finanziert die nächste Welle und lockt Nachahmer an. Der Schutz wirkt, das LKA ermittelt. Den Scrubbing-Vertrag dauerhaft ausbauen.", fx: { vertrauen: 2 }, time: 15,
+          praise: "Klare Empfehlung gegen eine Zahlung, mit Alternative und Begründung.",
+          then: [S("Hollerbach", "Überzeugend. Wir zahlen nicht.")] },
+        { l: "Zahlen. Dann kehrt Ruhe ein.", fx: { vertrauen: -2, schaden: 2 }, time: 10,
+          ko: "Zwei Wochen nach der Zahlung kommt HYDRA wieder, mit doppelter Forderung. Und drei andere Gruppen haben FinOps auf ihre Liste gesetzt. Du wirst vom Fall abgezogen.",
+          lesson: "Erpressern zu zahlen kauft keine Ruhe. Es weist dich als zahlungsbereites Ziel aus.",
+          then: [S("Hollerbach", "Ruhe? Für wie lange?")] },
+        { l: "Auf 5 Bitcoin runterhandeln. Dann ist es vertretbar.", fx: { vertrauen: -2 }, time: 10,
+          lesson: "Verhandeln ist bereits ein Eingehen auf die Erpressung. Die Entscheidung gegen Zahlung muss klar sein.",
+          then: [S("Hollerbach", "Wir sind doch kein Basar.")] }
+      ]),
+      SET("vor")
+    ];
+    if (f.b2) return [S("Hollerbach", "Kein Cent an Erpresser. Und alles läuft. Ich bin beeindruckt.")];
+    return [S("Hollerbach", "Halten Sie mich auf dem Laufenden.")];
+
+  case "kevin":
+    if (!f.h1) return [S("Kevin", "Gehaltstag! Ich wollte gerade schauen, ob mein Praktikantengehalt da ist ...")];
+    if (!f.kevin) return [
+      S("Kevin", "Chef! Ich habe den Telegram-Kanal von HYDRA gefunden. Da steht: „Kopf eins: 08:00. Kopf zwei: 08:20. Sie werden nur Kopf eins sehen.“"),
+      CH("Kevin hat eine Ankündigung gefunden.", [
+        { l: "Sehr wichtig! Sofort an Lena: Wir suchen ab 08:20 Uhr nach einem zweiten Angriff.", fx: { beweise: 2, team: 1 }, time: 5, set: "kevinHint",
+          praise: "Hinweis auf einen zweiten Angriff ernst genommen und sofort weitergegeben.",
+          then: [S("Kevin", "Ist unterwegs! Ich bleib an dem Kanal dran.")] },
+        { l: "Angeberei von Kriminellen. Lies das nicht.", time: 2,
+          lesson: "Täterkommunikation ist oft Prahlerei, enthält aber manchmal echte Hinweise. Bewerten statt ignorieren.",
+          then: [S("Kevin", "Okay ... aber was ist dann Kopf zwei?")] }
+      ]),
+      SET("kevin")
+    ];
+    return [S("Kevin", "Mein Gehalt ist da. Und ich habe heute einen Angriff mit aufgedeckt.")];
+  }
+  return [S("", "...")];
+}
+
+function interact6(x, y) {
+  const ch = tileAt(x, y), f = G.flags, room = roomAt(x, y);
+  if (ch === "F" && room === "Edge-Raum") {
+    if (!f.h1) return [S("", "Die Edge-Router. Hier kommt das Internet herein.")];
+    if (f.b1) return [S("", "Die Edge-Router leiten den Verkehr brav durchs Scrubbing-Center.")];
+    if (!f.prov) return [S("Ines", "Erst müssen wir uns für einen Weg entscheiden. Sprich mit mir.")];
+    if (!f.esc) return [S("Ines", "Ohne den Krisenstab baue ich das Routing nicht um. Dr. Vogel ist im Krisenstab, unten Mitte.")];
+    return [
+      S("Ines", "Umschalten in drei, zwei, eins ... HYDRA reagiert sofort."),
+      BAT("b1"),
+      SET("b1"),
+      S("Ines", "Die Flut ist gebändigt. Das Online-Banking ist wieder erreichbar."),
+      S("Lena", "Ich muss dir im SOC etwas zeigen. Sofort.")
+    ];
+  }
+  if (ch === "D" && room === "SOC") {
+    if (!f.twist) return [S("", "Die Online-Banking-Konsole. Login-Statistiken, ungewöhnlich hoch.")];
+    if (f.b2) return [S("", "Die Login-Kurve ist normal. Bot-Schutz aktiv.")];
+    if (!comms6()) return [S("Lena", "Bevor wir den Login umbauen: Hotline, Presse, Vorstand und der Anruf müssen geklärt sein. Sonst stehen wir gleich wieder im Feuer.")];
+    return [
+      S("Lena", "Der zweite Kopf: 50.000 Login-Versuche pro Minute. Jetzt oder nie."),
+      BAT("b2"),
+      SET("b2"),
+      S("Lena", "Die Bot-Welle ist gestoppt. Die betroffenen Konten sind gesichert, keine neuen Empfänger mehr."),
+      S("Tobias", "Dr. Vogel wartet im Krisenstab.")
+    ];
+  }
+  if (ch === "M") {
+    if (f.twist && !f.call) return [
+      { t: "sfx", n: "alarm" },
+      S("Telefon", "RIIING!"),
+      S("Raiffeisenbank Hügelland", "Hier Brandl, Zahlungsverkehr. Kunden melden Überweisungen, die sie nie gemacht haben. An neue Empfänger. Was ist bei euch los?"),
+      CH("Was sagst du der Bank?", [
+        { l: "Offen: Credential-Stuffing-Angriff, Ihre betroffenen Konten kommen gleich als Liste. Bitte Zahlungen über Ihre Zahlungsverkehrsabteilung zurückrufen. Fester Kontakt, stündliches Update.", fx: { vertrauen: 1 }, time: 10,
+          praise: "Betroffene Bank sofort mit konkreten Konten und Handlungsempfehlung versorgt.",
+          then: [S("Raiffeisenbank Hügelland", "Danke. Wir rufen die Zahlungen sofort zurück.")] },
+        { l: "Das liegt an Ihren Kunden. Die verwenden schwache Passwörter.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "Schuldzuweisungen an Kunden helfen niemandem. Die Plattform muss Credential Stuffing erkennen und bremsen.",
+          then: [S("Raiffeisenbank Hügelland", "Und warum lässt Ihre Plattform eine Million Fehlversuche zu?")] },
+        { l: "Wir prüfen das und melden uns nächste Woche.", fx: { vertrauen: -2, schaden: 1 }, time: 5,
+          lesson: "Bei laufendem Betrug zählen Stunden, nicht Wochen. Betroffene Banken brauchen sofort Informationen.",
+          then: [S("Raiffeisenbank Hügelland", "Nächste Woche ist das Geld weg.")] }
+      ]),
+      SET("call")
+    ];
+    return undefined;
+  }
+  return undefined;
+}
+
+const BATTLES6 = {
+  b1: {
+    name: "HYDRA", sub: "DDOS - 380 GBIT/S", hp: 100, model: "hydra",
+    hpBonus: () => (G.flags.provBad ? 20 : 0) + (G.flags.talked ? 10 : 0),
+    intro: ["Die HYDRA flutet das Online-Banking!", "Drei Köpfe, drei Angriffsarten. Bändige die Flut!"],
+    moves: [
+      { n: "Scrubbing-Umleitung", key: "scr", who: "Ines", d: "Verkehr per BGP durch das Reinigungszentrum des Providers.",
+        act: B => B.used.scr ? { dmg: 0, msg: ["Der Verkehr läuft bereits durchs Scrubbing."] }
+          : (B.used.scr = 1, { dmg: G.flags.provBad ? 25 : 40, msg: ["Sehr effektiv! Der Großteil der Flut wird herausgefiltert."], praise: "Angriffsverkehr per Scrubbing-Center gereinigt." }) },
+      { n: "Layer-7-Schutz", key: "waf", who: "Ines", d: "Web-Application-Firewall mit Bot-Filter vor die Login-Seite.",
+        act: B => B.used.waf ? { dmg: 0, msg: ["Der Schutz ist aktiv."] }
+          : (B.used.waf = 1, { dmg: 25, msg: ["Effektiv! Die Anfragenflut auf die Login-Seite bricht ein."] }) },
+      { n: "Rate-Limiting", key: "rl", who: "Murat", d: "Anfragen pro Quelle begrenzen.",
+        act: B => B.used.rl ? { dmg: 0, msg: ["Die Limits sind gesetzt."] }
+          : (B.used.rl = 1, { dmg: 20, msg: ["Effektiv! Einzelne Quellen kommen nicht mehr durch."] }) },
+      { n: "Muster analysieren", who: "Murat", d: "Angriffsmuster erkennen und Filter nachschärfen.",
+        act: () => ({ dmg: 14, msg: ["Murat findet eine neue Signatur im Angriffsverkehr und filtert sie."] }) },
+      { n: "Blackhole", who: "Du", d: "Allen Verkehr zu den Banking-Adressen verwerfen.",
+        act: () => ({ dmg: 35, fx: { vertrauen: -2 }, msg: ["Ruhe. Absolute Ruhe ...", "... weil auch kein einziger Kunde mehr durchkommt."],
+          lesson: "Ein Blackhole beendet den Angriff, indem es den Dienst selbst abschaltet. Nur als letzte Notlösung." }) },
+      { n: "Lösegeld zahlen", who: "Du", d: "15 Bitcoin, und die Flut hört auf. Vielleicht.",
+        act: () => ({ dmg: 0, fx: { vertrauen: -3, schaden: 1 }, msg: ["Die Bitcoin sind unterwegs ...", "... und HYDRA greift einfach weiter an."],
+          lesson: "Zahlen beendet keinen Angriff. Erpresser halten sich an keine Abmachung.",
+          ko: "Du hast eigenmächtig 15 Bitcoin an Erpresser überwiesen. Der Vorstand zieht dich mit sofortiger Wirkung vom Fall ab." }) }
+    ],
+    enemy: B => [
+      { w: B.used.scr ? 1 : 3, text: "HYDRA flutet mit 380 Gigabit pro Sekunde!", fx: { schaden: 1 } },
+      { w: B.used.waf ? 0 : 2, text: "HYDRA wechselt auf Layer 7 und bombardiert die Login-Seite!", heal: 15 },
+      { w: B.used.rl ? 0 : 2, text: "HYDRA wächst ein neuer Kopf: Angriff auf das ganze Adressnetz!", heal: 10 },
+      { w: 1, text: "HYDRA schickt eine zweite Erpressermail.", fx: { team: -1 } }
+    ],
+    win: ["Die HYDRA weicht zurück!", "Dein Team erhält 400 Erfahrungspunkte. Aber wo ist Kopf zwei?"]
+  },
+  b2: {
+    name: "HYDRA-KOPF ZWEI", sub: "CREDENTIAL STUFFING - ENDGEGNER", hp: 140, model: "hydraBoss",
+    hpBonus: () => (G.flags.kevinHint ? -15 : 0),
+    intro: ["Der zweite Kopf der HYDRA zeigt sich: Millionen gestohlener Passwörter!", "Schütze die Konten, ohne die Kunden auszusperren!"],
+    moves: [
+      { n: "Bot-Schutz verschärfen", key: "bot", who: "Lena", d: "Bots erkennen, verdächtige Logins mit Zusatzprüfung.",
+        act: B => B.used.bot ? { dmg: 0, msg: ["Der Bot-Schutz ist aktiv."] }
+          : (B.used.bot = 1, { dmg: 35, msg: ["Sehr effektiv! Die Bot-Logins prallen ab."], praise: "Bot-Schutz und Zusatzprüfung für verdächtige Logins aktiviert." }) },
+      { n: "Betroffene Konten sperren", key: "acc", who: "Tobias", d: "Die 340 übernommenen Zugänge über die Banken sperren.",
+        act: B => B.used.acc ? { dmg: 0, msg: ["Die Konten sind gesperrt."] }
+          : (B.used.acc = 1, { dmg: 30, msg: ["Effektiv! Die übernommenen Konten sind dicht."], praise: "Übernommene Konten gezielt gesperrt." }) },
+      { n: "Neue Empfänger stoppen", key: "pay", who: "Lena", d: "Neue Überweisungsempfänger nur mit zusätzlicher Freigabe.",
+        act: B => B.used.pay ? { dmg: 0, msg: ["Die Sperre für neue Empfänger gilt."] }
+          : (B.used.pay = 1, { dmg: 30, msg: ["Sehr effektiv! Kein Geld geht mehr an neue Empfänger."], praise: "Anlage neuer Zahlungsempfänger zusätzlich abgesichert." }) },
+      { n: "Leak-Abgleich", who: "Tobias", d: "Zugangsdaten mit bekannten Datenlecks abgleichen.",
+        act: () => ({ dmg: 12, fx: { beweise: 1 }, msg: ["Tobias findet 2.000 weitere gefährdete Konten und lässt sie vorsorglich zurücksetzen."] }) },
+      { n: "Login abschalten", who: "Du", d: "Das Online-Banking komplett vom Netz nehmen.",
+        act: () => ({ dmg: 40, fx: { vertrauen: -2, schaden: 1 }, msg: ["Der Login ist aus. Der Angriff auch ...", "... und vier Millionen Kunden sind am Gehaltstag ausgesperrt."],
+          lesson: "Mit der Abschaltung erledigt man die Arbeit der Angreifer. Gezielt schützen statt alles abschalten." }) },
+      { n: "Normalbetrieb freigeben", who: "Du", d: "Alle Schutzmaßnahmen zurückfahren.",
+        act: B => B.hp > 45
+          ? { dmg: 0, fx: { schaden: 1 }, msg: ["Zu früh! Die Bots warten nur darauf."], lesson: "Erst den Angriff vollständig abwehren, dann den Normalbetrieb freigeben." }
+          : { dmg: 60, msg: ["Die Angriffswelle ist vorbei, der Schutz bleibt im Hintergrund aktiv. Normalbetrieb!"], praise: "Normalbetrieb erst nach vollständiger Abwehr freigegeben." } }
+    ],
+    enemy: B => [
+      { w: B.used.bot ? 0 : 3, text: "HYDRA-KOPF ZWEI probiert 50.000 Passwörter pro Minute!", heal: 12 },
+      { w: B.used.pay ? 0 : 3, text: "HYDRA-KOPF ZWEI legt neue Zahlungsempfänger an!", fx: { schaden: 1 } },
+      { w: B.used.acc ? 0 : 2, text: "HYDRA-KOPF ZWEI meldet sich mit übernommenen Konten an!", heal: 10 },
+      { w: 1, text: "HYDRA-KOPF ZWEI startet einen kleinen DDoS zur Ablenkung.", fx: { team: -1 } }
+    ],
+    win: ["Beide Köpfe der HYDRA sind abgeschlagen!", "Dein Team erhält 999 Erfahrungspunkte. Und das Gehalt ist auch da."]
+  }
+};
+
+CASES.hydra = {
+  id: "hydra", num: 6, title: "HYDRA", sub: "DDoS mit Erpressung am Gehaltstag", diff: 3,
+  desc: "Fr, 08:15 Uhr, Gehaltstag. 380 Gbit/s auf das Online-Banking und eine Lösegeldforderung. Und während alle hinschauen, passiert woanders etwas.",
+  saveKey: "csirt_case_hydra_v1", start: { time: 8 * 60 + 15, x: 20, y: 11, dir: 1, days: ["Fr", "Sa", "So", "Mo"] },
+  fastLimit: 16 * 60, fastText: "Wer vor 16:00 Uhr fertig wird, bekommt einen Tempo-Bonus.",
+  map: [
+    "####################################",
+    "#VVVVVVVVVVVVVV#==W========W=======#",
+    "#..............#...................#",
+    "#..DDDD..DDDD..#.DD.DD.DD.DD.DD.DD.#",
+    "#..............#...................#",
+    "#..DDDD..DDDD..#.DD.DD.DD.DD.DD.DD.#",
+    "#..............#P.................P#",
+    "#P......B.....P##########d##########",
+    "#..............d...................#",
+    "#P............P#...........MM......#",
+    "#######d########...................#",
+    "#..................................#",
+    "####d########d#########d#######d####",
+    "#,,,,,,,,#........#........#_______#",
+    "#,FF,,FF,#.DD..DD.#.TTTTTT.#__TTT__#",
+    "#,,,,,,,,#........#.TTTTTT.#__TTT__#",
+    "#,FF,,FF,#........#........#_______#",
+    "#,,,,,,,,#P..K...P#P......P#P_____P#",
+    "####################################"
+  ],
+  rooms: [
+    { n: "Leitwarte", x0: 1, y0: 1, x1: 14, y1: 9 }, { n: "Hotline", x0: 16, y0: 1, x1: 34, y1: 6 },
+    { n: "Edge-Raum", x0: 1, y0: 13, x1: 8, y1: 17 }, { n: "SOC", x0: 10, y0: 13, x1: 17, y1: 17 },
+    { n: "Krisenstab", x0: 19, y0: 13, x1: 26, y1: 17 }, { n: "Vorstand", x0: 28, y0: 13, x1: 34, y1: 17 }
+  ],
+  floors: { Leitwarte: ["#2b3550", "#263048"], Hotline: ["#d0c4a8", "#c6ba9e"], "Edge-Raum": ["#c9d3de", "#bcc7d3"] },
+  alarmPos: [[7, 4], [4, 15]],
+  videoWall: f => f.b1 ? "Leitwarte: Verkehr normal, Scrubbing aktiv. Die rote Spitze von 08:02 Uhr hängt noch wie ein Mahnmal am Rand." : "Leitwarte: Eine rote Kurve, die aus dem Bild läuft. 380 Gbit/s.",
+  npcs: NPCS6, npcNew: npcNew6, talk: talk6, interact: interact6, objectives: objectives6, battles: BATTLES6,
+  titleModel: "hydra",
+  handbook: f => !f.b1 ? "DDoS, Kapitel 1: Notfallplan mit dem Provider, Scrubbing statt Blackhole, Erpressung sichern, nicht antworten, nicht zahlen."
+    : !f.b2 ? "DDoS, Kapitel 2: Ein DDoS ist oft nur Ablenkung. Logins, Zahlungen und Admin-Zugänge gerade jetzt genau beobachten."
+    : "DDoS, Kapitel 3: Dauerhafter Schutz, geübte Pläne, Bot-Erkennung, risikobasierte Logins.",
+  intro: n => [
+    S("", "Freitag, 08:15 Uhr. Monatsletzter. Gehaltstag."),
+    S("", "Du bist " + n + ", CSIRT-Manager, und hältst gerade deinen ersten Kaffee in der Hand."),
+    DIFF(),
+    { t: "sfx", n: "alarm" },
+    S("Murat", "Chef, sofort in die Leitwarte, oben links! Das Online-Banking ist weg!"),
+    HINT()
+  ],
+  marks: f => { const m = []; if (f.prov && f.esc && !f.b1) m.push([6, 14, 2.0]); if (comms6() && !f.b2) m.push([11, 14, 1.6]); if (f.twist && !f.call) m.push([27, 9, 1.5]); return m; },
+  alarm: f => ({ active: f.h1 && !f.b2, critical: f.h1 && !f.b1, color: (f.h1 && !f.b1) ? undefined : "#ff8a1f" }),
+  dawn: f => f.review ? 1 : 0.6
+};
+
+/* ================= FALL 7: KUCKUCK (Supply-Chain-Angriff) ================= */
+const NPCS7 = [
+  { id: "lena", name: "Lena Brandt", role: "SOC-Lead", x: 5, y: 3, dir: 1 },
+  { id: "tobias", name: "Tobias Kern", role: "Forensiker", x: 16, y: 3, dir: 1 },
+  { id: "anja", name: "Anja Berger", role: "Lieferantenmanagement", x: 27, y: 3, dir: 1 },
+  { id: "felix", name: "Felix Kramer", role: "Release-Management", x: 4, y: 9, dir: 0 },
+  { id: "murat", name: "Murat Aydin", role: "Server-Betrieb", x: 19, y: 9, dir: 0 },
+  { id: "vogel", name: "Dr. Petra Vogel", role: "CISO", x: 32, y: 8, dir: 2 },
+  { id: "holl", name: "Frank Hollerbach", role: "Vorstand", x: 27, y: 13, dir: 0 },
+  { id: "sabine", name: "Sabine Roth", role: "Pressestelle", x: 14, y: 18, dir: 0 },
+  { id: "kevin", name: "Kevin", role: "Praktikant", x: 6, y: 20, dir: 1 }
+];
+function comms7() { const f = G.flags; return !!(f.twist && f.call && f.vor && f.press && f.vendor); }
+function npcNew7(n) {
+  const f = G.flags;
+  switch (n.id) {
+    case "lena": return !f.k1;
+    case "felix": return f.k1 && !f.freeze;
+    case "anja": return f.k1 && !f.vendor;
+    case "vogel": return (f.k1 && !f.esc) || (f.b2 && !f.review);
+    case "tobias": return f.b1 && !f.twist;
+    case "holl": return f.b1 && f.esc && !f.vor;
+    case "sabine": return f.b1 && !f.press;
+    case "kevin": return f.k1 && !f.kevin;
+  }
+  return false;
+}
+function objectives7() {
+  const f = G.flags, o = [];
+  if (!f.k1) o.push("Lena hat einen Alarm im SOC (oben links).");
+  else if (!f.b1) {
+    if (!f.freeze) o.push("Das nächste Update stoppen: Felix, Release-Management (links).");
+    if (!f.esc) o.push("Eskaliere an Dr. Vogel (Krisenstab, rechts).");
+    if (!f.vendor) o.push("Hersteller einbinden: Anja, Lieferantenmanagement (oben rechts).");
+    if (f.freeze && f.esc) o.push("Den Kuckuck stellen: Monitoring-Server im Build-Serverraum (Mitte).");
+  } else if (!comms7()) {
+    if (!f.twist) o.push("Tobias hat die Server analysiert (Forensik, oben Mitte).");
+    if (!f.vendor) o.push("Hersteller einbinden: Anja, Lieferantenmanagement (oben rechts).");
+    if (!f.call) o.push("Das Telefon an deinem Platz klingelt (Entwicklung, unten).");
+    if (!f.vor) o.push("Vorstand Hollerbach briefen (Vorstand, rechts unten).");
+    if (!f.press) o.push("Presseanfrage: Sabine (Entwicklung, unten).");
+  } else if (!f.b2) o.push("Das Kuckucksei entfernen: Monitoring-Server im Build-Serverraum.");
+  else if (!f.review) o.push("Nachbereitung mit Dr. Vogel (Krisenstab, rechts).");
+  if (f.k1 && !f.kevin) o.push("(Optional) Kevin in der Küche hat etwas im Netz gelesen.");
+  return o;
+}
+
+function talk7(id) {
+  const f = G.flags, N = G.name;
+  switch (id) {
+  case "lena":
+    if (!f.k1) return [
+      S("Lena", "Schau dir das an. Seit Donnerstag funkt der SysWatch-Agent alle vier Stunden zu cdn-syswatch-update.net. Auf 2.400 Servern."),
+      S("Lena", "SysWatch ist unser Monitoring-Agent von NetaSoft. Version 8.4.1, letzten Donnerstag von unserer eigenen Pipeline verteilt. Auch auf die Server in den Banken."),
+      S("Lena", "Die Domain gehört nicht NetaSoft. Aber die Datei ist korrekt signiert. Mit NetaSofts echtem Zertifikat."),
+      CH("Wie bewertest du das?", [
+        { l: "Lagebild: Welche Version, wo installiert, welche Server funken wirklich, seit wann? Die Domain sofort per DNS sperren und alle Spuren sichern.", fx: { beweise: 1, schaden: -1 }, time: 15,
+          praise: "Lagebild erstellt, Kommunikation zum Angreifer sofort unterbrochen, Spuren gesichert.",
+          then: [S("Lena", "DNS-Sperre ist aktiv. 2.400 Server haben den Agenten, alle funken. Aber ob alle gleich betroffen sind ...")] },
+        { l: "Die Signatur ist gültig. Dann ist die Datei sauber. Fehlalarm.", fx: { schaden: 2 }, time: 5,
+          lesson: "Eine gültige Signatur beweist nur die Herkunft, nicht die Unschuld. Ist der Build-Prozess des Herstellers kompromittiert, signiert er die Hintertür gleich mit.",
+          then: [S("Lena", "Fehlalarm? Eine Monitoring-Software, die zu einer fremden Domain funkt? Ich sperre die Domain trotzdem.")] },
+        { l: "Den Agenten sofort von allen 2.400 Servern löschen.", fx: { beweise: -2, vertrauen: -1 }, time: 20,
+          lesson: "Unkoordiniertes Löschen vernichtet Beweise, reißt eine Überwachungslücke und warnt den Angreifer. Erst eindämmen und verstehen.",
+          then: [S("Lena", "Gelöscht. Jetzt sind wir blind beim Monitoring, und Tobias hat keine Dateien mehr zum Analysieren.")] }
+      ]),
+      S("Lena", "Wichtig: Felix im Release-Management will heute Mittag das nächste NetaSoft-Update ausrollen. Und Dr. Vogel muss Bescheid wissen."),
+      SET("k1")
+    ];
+    if (f.b2) return [S("Lena", "Ab jetzt darf kein Agent mehr frei ins Internet funken. Nur noch über einen Proxy mit Freigabeliste.")];
+    return [S("Lena", "Ich beobachte jeden DNS-Aufruf. Der Kuckuck ruft, aber niemand antwortet mehr.")];
+
+  case "felix":
+    if (!f.k1) return [S("Felix", "Release-Management. Heute um 14:00 Uhr rollen wir die neuen NetaSoft-Pakete aus. Alles automatisch.")];
+    if (!f.freeze) return [
+      S("Felix", "Um 14:00 Uhr geht das nächste NetaSoft-Update raus. Version 8.4.2, automatisch auf alle Server, auch in den Bankfilialen."),
+      CH("Was machst du mit der Pipeline?", [
+        { l: "Sofortiger Stopp für alle NetaSoft-Pakete. Für diesen Hersteller wird die Pipeline eingefroren. Die letzte saubere Version bestimmen.", fx: { schaden: -1 }, time: 10,
+          praise: "Rollout sofort gestoppt, Ausbreitung über die eigene Pipeline verhindert.",
+          then: [S("Felix", "Gestoppt. Version 8.3.9 von Mai ist die letzte, die nie zu dieser Domain gefunkt hat.")] },
+        { l: "Weiter ausrollen. Vielleicht behebt das neue Update ja das Problem.", fx: { schaden: 3 }, time: 5,
+          ko: "Um 14:00 Uhr verteilt die Pipeline die neue Version auf weitere 900 Server in Bankfilialen. Auch sie enthält die Hintertür. Du wirst vom Fall abgezogen.",
+          lesson: "Solange der Hersteller kompromittiert sein könnte, ist jedes neue Update verdächtig. Erst stoppen, dann prüfen.",
+          then: [S("Felix", "Das neue Paket funkt zur selben Domain ...")] },
+        { l: "Die komplette Pipeline abschalten, für alle Hersteller.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Ein totaler Stopp blockiert auch dringende Sicherheitsupdates anderer Hersteller. Gezielt den betroffenen Lieferanten einfrieren.",
+          then: [S("Felix", "Alles gestoppt. Auch das Browser-Update, das eine aktiv ausgenutzte Lücke schließt. Ich nehme die anderen Hersteller wieder rein.")] }
+      ]),
+      SET("freeze")
+    ];
+    if (f.b2) return [S("Felix", "Neue Regel: Updates erst in einen Testring, dann gestaffelt. Und jede Datei gegen eine Stückliste geprüft.")];
+    return [S("Felix", "Die Pipeline steht für NetaSoft. Alle anderen Hersteller laufen normal.")];
+
+  case "anja":
+    if (!f.k1) return [S("Anja", "Lieferantenmanagement. Verträge, Bewertungen, das Informationsregister. Glamourös.")];
+    if (!f.vendor) return [
+      S("Anja", "NetaSoft steht in unserem DORA-Informationsregister. Dienstleister für eine kritische Funktion: Überwachung des Zahlungsverkehrs."),
+      CH("Wie gehst du mit dem Hersteller um?", [
+        { l: "Über den vertraglichen Sicherheitskontakt informieren, Auskunft und Mitwirkung einfordern, die Exit-Strategie prüfen. Und unabhängig davon selbst weiter untersuchen.", fx: { beweise: 1, vertrauen: 1 }, time: 15,
+          praise: "Hersteller über den vertraglichen Weg eingebunden, Exit-Strategie geprüft, eigene Untersuchung fortgesetzt.",
+          then: [S("Anja", "Die Mitwirkungspflichten stehen im Vertrag. Ich schicke die formelle Anfrage raus.")] },
+        { l: "Nichts sagen. Wenn NetaSoft kompromittiert ist, warnen wir sonst den Angreifer.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Der Hersteller ist selbst Opfer. Ohne ihn gibt es keine Aufklärung, und andere Kunden bleiben ungeschützt. Über den vereinbarten Sicherheitskontakt informieren.",
+          then: [S("Anja", "Dann erfährt NetaSoft es von jemand anderem. Und andere Kunden sind weiter ungeschützt.")] },
+        { l: "NetaSoft öffentlich an den Pranger stellen. Die sollen sehen, was sie angerichtet haben.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "Öffentliche Schuldzuweisung zerstört die Zusammenarbeit, die man für die Aufklärung braucht, und kann Ermittlungen stören.",
+          then: [S("Anja", "Und danach redet NetaSoft nur noch über Anwälte mit uns.")] }
+      ]),
+      SET("vendor")
+    ];
+    return [S("Anja", "Die Exit-Strategie für NetaSoft liegt bereit. Hoffentlich brauchen wir sie nicht.")];
+
+  case "vogel":
+    if (!f.k1) return [S("Dr. Vogel", "Montagmorgen. Die Woche beginnt ruhig.")];
+    if (!f.esc) return [
+      S("Dr. Vogel", "Eine Hintertür in einem signierten Hersteller-Update? Auf 2.400 Servern, auch in den Banken? Was schlagen Sie vor?"),
+      CH("Wie eskalierst du?", [
+        { l: "Krisenstab jetzt. Die Banken informieren, weil die Software auch bei ihnen läuft. Indikatoren über den CERT-Verbund teilen, damit andere NetaSoft-Kunden sich schützen können.", fx: { vertrauen: 2 }, time: 15,
+          praise: "Früh eskaliert, Banken informiert und Indikatoren mit anderen Betroffenen geteilt.",
+          then: [S("Dr. Vogel", "Gut. Ich spreche die Banken an. Sie stellen den Angreifer im Serverraum.")] },
+        { l: "Erst wenn NetaSoft die Kompromittierung bestätigt.", fx: { vertrauen: -2 }, time: 30,
+          lesson: "Herstellerbestätigungen dauern oft Tage. Eigene Belege reichen, um zu handeln und Betroffene zu warnen.",
+          then: [S("Dr. Vogel", "NetaSoft antwortet nicht. Wir warten nicht länger.")] },
+        { l: "Das bleibt intern. Es sind ja unsere Server.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "Die Software läuft auch bei den Banken. Sie müssen sich schützen und ggf. selbst melden. Intern behalten verletzt Vertrauen und Pflichten.",
+          then: [S("Dr. Vogel", "Unsere Server? Der Agent läuft auch in 300 Bankfilialen.")] }
+      ]),
+      SET("esc")
+    ];
+    if (f.b2 && !f.review) return [
+      S("Dr. Vogel", "Der Kuckuck ist raus, die Eier sind entfernt. Was lernen wir aus einem Angriff über die Lieferkette?"),
+      CH("Wie schließt du den Fall ab?", [
+        { l: "Lieferkette absichern: Stücklisten und Hash-Prüfung vor jedem Rollout, gestaffelte Rollouts über Testringe, Agenten dürfen nur über eine Freigabeliste ins Internet, minimale Rechte für Dienstkonten, Drittparteien-Notfallübungen.", fx: { team: 2, vertrauen: 1 }, time: 45,
+          praise: "Lieferkette gehärtet: Prüfung vor Rollout, Testringe, Egress-Kontrolle, minimale Rechte, Übungen.",
+          then: [S("Dr. Vogel", "Und Anja übernimmt die Übung mit den fünf kritischsten Dienstleistern.")] },
+        { l: "Nur noch Software aus Deutschland.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Herkunft schützt nicht vor kompromittierten Build-Prozessen. Entscheidend sind Prüfung, Begrenzung und Überwachung.",
+          then: [S("Dr. Vogel", "NetaSoft sitzt in Paderborn.")] },
+        { l: "Keine automatischen Updates mehr. Alles bleibt auf dem aktuellen Stand.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Ohne Updates bleiben bekannte Lücken offen. Updates kontrolliert ausrollen, nicht abschaffen.",
+          then: [S("Dr. Vogel", "Dann ist der nächste Angreifer über eine alte Lücke drin.")] }
+      ]),
+      SET("review"),
+      S("", "Montagabend. Im Release-Management hängt ein neues Schild: „Vertrauen ist gut. Hashwerte sind besser.“"),
+      { t: "end" }
+    ];
+    return [S("Dr. Vogel", "Der Krisenstab tagt. Sie führen operativ.")];
+
+  case "tobias":
+    if (!f.b1) return [S("Tobias", "Ich habe die Datei des Agenten zerlegt. Sauber signiert, schmutzig von innen.")];
+    if (!f.twist) return [
+      S("Tobias", "Ich habe die Server ausgewertet. Auf 2.388 Servern schläft die Hintertür nur. Auf zwölf wurde sie aktiviert."),
+      S("Tobias", "Alle zwölf stehen im Zahlungsverkehr. Dort lief eine zweite Stufe: Ein Modul liest SEPA-Dateien vor der Übertragung. Mit einem Dienstkonto, das Rechte im Zahlungsverkehr hat."),
+      ...(f.kevinHint ? [S("Tobias", "Kevins Fund aus dem Kundenforum passt: Bei anderen NetaSoft-Kunden wurden auch nur einzelne, wertvolle Server aktiviert."), FX({ beweise: 1 })] : []),
+      CH("Wie gehst du mit den zwölf Servern um?", [
+        { l: "Als kompromittiert behandeln: isolieren, forensisch sichern, aus sauberen Images neu aufbauen, alle dort genutzten Konten und Schlüssel wechseln, Zahlungsdateien seit Donnerstag mit den Banken prüfen.", fx: { beweise: 2 }, time: 20,
+          praise: "Gezielt aktivierte Server vollständig behandelt: isolieren, neu aufbauen, Geheimnisse wechseln, Zahlungen prüfen.",
+          then: [S("Tobias", "Genau. Und die anderen 2.388 bekommen die saubere Version, sobald sie verifiziert ist.")] },
+        { l: "Auf den zwölf Servern einfach den Agenten deinstallieren.", fx: { schaden: 1 }, time: 10, set: "partial",
+          lesson: "Die zweite Stufe lebt unabhängig vom Agenten weiter. Kompromittierte Server neu aufbauen, Geheimnisse wechseln.",
+          then: [S("Tobias", "Deinstalliert. Das Lesemodul läuft trotzdem weiter. Es braucht den Agenten nicht mehr.")] },
+        { l: "Alle 2.400 Server neu aufbauen. Sofort und gleichzeitig.", fx: { vertrauen: -1, team: -1 }, time: 20,
+          lesson: "Ein Neuaufbau von 2.400 Servern auf einmal legt den Betrieb lahm. Erst die aktivierten Systeme, dann die übrigen geplant.",
+          then: [S("Tobias", "Das dauert Wochen. Wir fangen mit den zwölf an, der Rest folgt geplant.")] }
+      ]),
+      SET("twist")
+    ];
+    if (f.b2) return [S("Tobias", "Ich habe eine Hashliste aller sauberen Versionen erstellt. Für immer.")];
+    return [S("Tobias", "Die zwölf Zahlungsverkehrsserver sind isoliert. Ich sichere ihre Daten.")];
+
+  case "murat":
+    if (f.b2) return [S("Murat", "Die zwölf Server sind neu. Glänzend, sauber, langweilig.")];
+    if (f.b1) return [S("Murat", "Der Agent ist auf allen Servern gestoppt. Die Dateien liegen noch für Tobias da.")];
+    return [S("Murat", f.k1 ? "Der Monitoring-Server steht hier in der Mitte des Raums. Sag Bescheid." : "Der Build-Serverraum. Hier wird alles gebaut und verteilt.")];
+
+  case "holl":
+    if (!f.esc) return [S("Hollerbach", "Bitte über Dr. Vogel. Danke.")];
+    if (!f.b1) return [S("Hollerbach", "Erst eindämmen. Dann will ich wissen, was das für uns und die Banken heißt.")];
+    if (!f.vor) return [
+      S("Hollerbach", "Eine Hintertür im Zahlungsverkehr. Ist Geld weg? Was sagen wir den Banken? Und was machen wir mit NetaSoft?"),
+      CH("Was empfiehlst du dem Vorstand?", [
+        { l: "Banken sofort informieren: Der Zahlungsverkehr ist betroffen, das brauchen sie für ihre DORA-Bewertung. Zahlungsdateien seit Donnerstag gemeinsam prüfen. Exit-Strategie für NetaSoft vorbereiten, aber geordnet.", fx: { vertrauen: 2 }, time: 20,
+          praise: "Vorstand mit klarer Linie zu Banken, Zahlungsprüfung und geordneter Exit-Strategie versorgt.",
+          then: [S("Hollerbach", "Das trage ich mit. Und die Banken bekommen heute noch die Information.")] },
+        { l: "Erst mal beobachten, ob überhaupt Geld fehlt.", fx: { vertrauen: -3, schaden: 2 }, time: 5,
+          ko: "Drei Tage später stellen zwei Banken fest, dass über manipulierte SEPA-Dateien 1,3 Mio. Euro abgeflossen sind. Von FinOps hatten sie nichts gehört. Du wirst vom Fall abgezogen.",
+          lesson: "Bei kompromittierten Zahlungssystemen sofort mit den Banken prüfen. Abwarten macht aus einer Lücke einen Schaden.",
+          then: [S("Hollerbach", "Beobachten? Es geht um Zahlungsdateien von Banken.")] },
+        { l: "NetaSoft fristlos kündigen und den Agenten heute noch überall löschen.", fx: { vertrauen: -1 }, time: 10,
+          lesson: "Ein überstürzter Exit reißt Überwachungslücken und vernichtet Beweise. Exit-Strategien sind geordnet und geplant.",
+          then: [S("Hollerbach", "Und womit überwachen wir ab morgen den Zahlungsverkehr?")] }
+      ]),
+      SET("vor")
+    ];
+    if (f.b2) return [S("Hollerbach", "Kein Euro weg und die Banken sind zufrieden. Gute Arbeit.")];
+    return [S("Hollerbach", "Halten Sie mich auf dem Laufenden.")];
+
+  case "sabine":
+    if (!f.b1) return [S("Sabine", "Montag. Die Presse schläft noch.")];
+    if (!f.press) return [
+      S("Sabine", "Ein Sicherheitsforscher hat gebloggt: „NetaSoft-Update enthält Hintertür, betroffen auch Finanzdienstleister.“ Ein Fachmagazin fragt, ob wir betroffen sind."),
+      CH("Was sagt die Pressestelle?", [
+        { l: "Freigegebenes Statement: Wir sind betroffen, haben den Agenten eingedämmt, arbeiten mit Hersteller und Behörden zusammen und haben die Banken informiert.", fx: { vertrauen: 1 }, time: 15,
+          praise: "Ehrliches, abgestimmtes Statement zu einem Lieferkettenangriff.",
+          then: [S("Sabine", "Ehrlich und unaufgeregt. So bleibt die Geschichte klein.")] },
+        { l: "Sag: Wir setzen NetaSoft nicht ein.", fx: { vertrauen: -3 }, time: 5,
+          ko: "Der Forscher veröffentlicht eine Liste betroffener Domains, darunter FinOps. Das Dementi wird zur Schlagzeile. Du wirst vom Fall abgezogen.",
+          lesson: "Falsche Dementis fliegen bei Lieferkettenangriffen schnell auf, weil Forscher die Indikatoren öffentlich machen.",
+          then: [S("Sabine", "Der Forscher hat unsere Domain in seiner Liste ...")] },
+        { l: "Sag: Schuld ist allein NetaSoft. Wir sind nur Opfer.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Auch als Opfer trägt man Verantwortung für die eigene Reaktion. Schuldzuweisung wirkt defensiv und schadet der Zusammenarbeit.",
+          then: [S("Sabine", "Und warum hat unsere Pipeline das Update ungeprüft verteilt? Die Frage kommt sofort.")] }
+      ]),
+      SET("press")
+    ];
+    return [S("Sabine", "Das Statement ist raus. Die Berichte sind fair.")];
+
+  case "kevin":
+    if (!f.k1) return [S("Kevin", "Ich lerne gerade, was eine Stückliste für Software ist. SBOM. Klingt wie ein Rapper.")];
+    if (!f.kevin) return [
+      S("Kevin", "Chef! Im Kundenforum von NetaSoft schreiben zwei andere Firmen, dass ihre Agenten seit Donnerstag komische DNS-Anfragen machen. Und dass es nur auf einzelnen Servern zu Nachladen kommt."),
+      CH("Kevin hat etwas im Netz gefunden.", [
+        { l: "Sehr gut! Gib das Tobias, und wir teilen unsere Indikatoren über den CERT-Verbund mit den anderen Betroffenen.", fx: { beweise: 2, team: 1 }, time: 5, set: "kevinHint",
+          praise: "Hinweis aus der Community genutzt und eigene Erkenntnisse geteilt.",
+          then: [S("Kevin", "Mach ich! Wir sind also nicht allein.")] },
+        { l: "Foren sind Gerüchteküchen. Ignorier das.", time: 2,
+          lesson: "Bei Lieferkettenangriffen sind andere Betroffene die schnellste Informationsquelle. Prüfen und nutzen.",
+          then: [S("Kevin", "Okay ... aber die beschreiben genau unser Problem.")] }
+      ]),
+      SET("kevin")
+    ];
+    return [S("Kevin", "Ich habe eine SBOM gelesen. Sie war 4.000 Zeilen lang. Ich bin jetzt Fan.")];
+  }
+  return [S("", "...")];
+}
+
+function interact7(x, y) {
+  const ch = tileAt(x, y), f = G.flags, room = roomAt(x, y);
+  if (ch === "F" && room === "Build-Serverraum") {
+    if (!f.k1) return [S("", "Der Monitoring-Server. Von hier aus wird SysWatch auf alle Systeme verteilt.")];
+    if (!f.b1) {
+      if (!f.freeze) return [S("Murat", "Warte! Wenn wir hier eingreifen, während Felix gleich das nächste Update verteilt, kämpfen wir gegen zwei Fronten. Erst die Pipeline stoppen.")];
+      if (!f.esc) return [S("Murat", "Das ist zu groß für einen Alleingang. Dr. Vogel muss Bescheid wissen. Krisenstab, rechts.")];
+      return [
+        S("Murat", "Der Agent wacht auf. Er hat gemerkt, dass seine Domain gesperrt ist, und probiert Ausweichwege."),
+        BAT("b1"),
+        SET("b1"),
+        S("Murat", "Der Kuckuck ist eingedämmt. Kein Agent funkt mehr nach draußen."),
+        S("Lena", "Tobias will dich sprechen. Er hat etwas auf einzelnen Servern gefunden.")
+      ];
+    }
+    if (!comms7()) return [S("Murat", "Bevor wir die zwölf Server neu aufbauen: Hersteller, Vorstand, Banken und Presse müssen geklärt sein.")];
+    if (!f.b2) return [
+      S("", "Murat, Lena und Tobias stehen bereit. Zwölf Server, zwölf Kuckuckseier."),
+      BAT("b2"),
+      SET("b2"),
+      S("Tobias", "Neu aufgebaut, Geheimnisse gewechselt, Zahlungsdateien geprüft: kein Euro ist abgeflossen. Die saubere Version ist verifiziert ausgerollt."),
+      S("Tobias", "Dr. Vogel wartet im Krisenstab, rechts.")
+    ];
+    return [S("", "Der Monitoring-Server läuft mit der verifizierten Version. Er funkt nur noch über den Proxy.")];
+  }
+  if (ch === "M") {
+    if (f.b1 && !f.call) return [
+      { t: "sfx", n: "alarm" },
+      S("Telefon", "RIIING! Die Nummer von NetaSoft, aus dem Vertrag bekannt."),
+      S("NetaSoft", "Hier Kessler, Geschäftsführer NetaSoft. Wir haben eine Kompromittierung unseres Build-Servers bestätigt. Morgen veröffentlichen wir. Bitte behandeln Sie das bis dahin vertraulich."),
+      CH("Was antwortest du dem Hersteller?", [
+        { l: "Danke für die Offenheit. Wir brauchen sofort Indikatoren und die Liste der betroffenen Versionen. Unsere Banken informieren wir trotzdem heute, vertraulich und abgestimmt. Das sind wir ihnen schuldig.", fx: { vertrauen: 1, beweise: 1 }, time: 10,
+          praise: "Zusammenarbeit mit dem Hersteller gesucht, ohne die eigenen Informationspflichten aufzuschieben.",
+          then: [S("NetaSoft", "Verstanden. Die Indikatoren kommen in einer Stunde.")] },
+        { l: "In Ordnung, wir sagen bis morgen niemandem etwas.", fx: { vertrauen: -2 }, time: 5,
+          lesson: "Eigene Informationspflichten gegenüber Kunden lassen sich nicht an die PR-Planung des Herstellers koppeln.",
+          then: [S("NetaSoft", "Danke für Ihr Verständnis."), S("", "Und die Banken warten einen Tag länger auf eine Information, die sie heute schon gebraucht hätten.")] },
+        { l: "Das wird teuer für Sie. Wir verklagen Sie.", fx: { vertrauen: -1 }, time: 5,
+          lesson: "Rechtliche Ansprüche prüft die Rechtsabteilung später. In der Krise braucht man den Hersteller als Partner.",
+          then: [S("NetaSoft", "Dann sprechen wir ab jetzt über unsere Anwälte.")] }
+      ]),
+      SET("call")
+    ];
+    return undefined;
+  }
+  return undefined;
+}
+
+const BATTLES7 = {
+  b1: {
+    name: "KUCKUCK", sub: "SUPPLY-CHAIN - HINTERTÜR", hp: 110, model: "cuckoo",
+    intro: ["Ein KUCKUCK sitzt im Nest von 2.400 Servern!", "Er kam mit einem signierten Update. Bring ihn zum Schweigen, ohne Beweise zu zerstören!"],
+    moves: [
+      { n: "C2-Domain sperren", key: "dns", who: "Lena", d: "Alle Adressen des Angreifers per DNS und Firewall blocken.",
+        act: B => B.used.dns ? { dmg: 0, msg: ["Die Domains sind gesperrt."] }
+          : (B.used.dns = 1, { dmg: 35, msg: ["Sehr effektiv! Der Kuckuck ruft ins Leere."], praise: "Kommunikation zum Angreifer vollständig unterbunden." }) },
+      { n: "Agent-Dienst stoppen", key: "stop", who: "Murat", d: "Dienst anhalten, Dateien für die Forensik behalten.",
+        act: B => B.used.stop ? { dmg: 0, msg: ["Der Dienst ist gestoppt."] }
+          : (B.used.stop = 1, { dmg: 30, msg: ["Effektiv! Der Agent schläft, die Dateien bleiben als Beweis."], praise: "Agent gestoppt statt gelöscht: Eindämmung mit Beweiserhalt." }) },
+      { n: "EDR blockt Hashwert", key: "edr", who: "Lena", d: "Die manipulierte Datei überall am Start hindern.",
+        act: B => B.used.edr ? { dmg: 0, msg: ["Der Hashwert ist geblockt."] }
+          : (B.used.edr = 1, { dmg: 25, msg: ["Effektiv! Die manipulierte Version startet nirgends mehr."] }) },
+      { n: "Verbindungen überwachen", who: "Tobias", d: "Ausweichversuche des Agenten beobachten und blocken.",
+        act: () => ({ dmg: 12, fx: { beweise: 1 }, msg: ["Tobias entdeckt einen Ausweichweg über DNS-Tunnel und lässt ihn sperren."] }) },
+      { n: "Alle Server neu installieren", who: "Du", d: "Radikal: 2.400 Server auf einmal.",
+        act: () => ({ dmg: 35, fx: { vertrauen: -2, team: -2, schaden: 1 }, msg: ["Die Neuinstallation beginnt ...", "... und der halbe Betrieb steht still. Für Wochen."],
+          lesson: "Ein Neuaufbau ohne Priorisierung legt den Betrieb lahm. Erst eindämmen, dann gezielt die betroffenen Systeme neu aufbauen." }) },
+      { n: "Hersteller abwarten", who: "Du", d: "Nichts tun, bis NetaSoft eine Erklärung liefert.",
+        act: () => ({ dmg: 0, fx: { schaden: 1 }, msg: ["Du wartest. Der Kuckuck nicht."],
+          lesson: "Bei Lieferkettenangriffen eigene Belege nutzen und handeln. Herstellererklärungen kommen oft spät." }) }
+    ],
+    enemy: B => [
+      { w: B.used.dns ? 0 : 3, text: "KUCKUCK funkt nach Hause!", heal: 15 },
+      { w: B.used.stop ? 1 : 2, text: "KUCKUCK lädt ein neues Modul nach!", fx: { schaden: 1 } },
+      { w: B.used.edr ? 0 : 2, text: "KUCKUCK legt ein Ei: eine neue Datei im Systemordner!", heal: 10 },
+      { w: 1, text: "KUCKUCK tarnt sich als ganz normaler Monitoring-Prozess ..." }
+    ],
+    win: ["Der KUCKUCK verstummt!", "Dein Team erhält 450 Erfahrungspunkte. Aber was hat er schon ausgebrütet?"]
+  },
+  b2: {
+    name: "KUCKUCKSEI", sub: "ZWEITE STUFE - ZAHLUNGSVERKEHR", hp: 160, model: "egg",
+    hpBonus: () => (G.flags.partial ? 25 : 0) - (G.flags.kevinHint ? 10 : 0),
+    intro: ["Im Zahlungsverkehr schlüpft das KUCKUCKSEI!", "Zwölf Server, ein gestohlenes Dienstkonto. Räume das Nest aus!"],
+    moves: [
+      { n: "Zwölf Server neu aufbauen", key: "rb", who: "Murat", d: "Aus sauberen Images, nichts vom alten System übernehmen.",
+        act: B => B.used.rb ? { dmg: 0, msg: ["Die Server sind neu."] }
+          : (B.used.rb = 1, { dmg: 35, msg: ["Sehr effektiv! Das Lesemodul ist mit den alten Systemen verschwunden."], praise: "Aktivierte Server aus sauberen Images neu aufgebaut." }) },
+      { n: "Dienstkonten wechseln", key: "rot", who: "Lena", d: "Alle Konten und Schlüssel, die auf den zwölf Servern lagen.",
+        act: B => B.used.rot ? { dmg: 0, msg: ["Die Konten sind gewechselt."] }
+          : (B.used.rot = 1, { dmg: 30, msg: ["Sehr effektiv! Das gestohlene Dienstkonto ist wertlos."], praise: "Alle betroffenen Dienstkonten und Schlüssel gewechselt." }) },
+      { n: "Zahlungsdateien prüfen", key: "pay", who: "Tobias", d: "Alle SEPA-Dateien seit Donnerstag mit den Banken abgleichen.",
+        act: B => B.used.pay ? { dmg: 0, msg: ["Der Abgleich ist durch."] }
+          : (B.used.pay = 1, { dmg: 25, fx: { beweise: 1 }, msg: ["Effektiv! Zwei manipulierte Empfänger-IBANs gefunden und rechtzeitig gestoppt."], praise: "Zahlungsdateien geprüft, manipulierte Zahlungen rechtzeitig gestoppt." }) },
+      { n: "Nach Stufe zwei jagen", who: "Tobias", d: "Weitere Spuren der zweiten Stufe suchen.",
+        act: () => ({ dmg: 15, fx: { beweise: 1 }, msg: ["Tobias findet eine geplante Aufgabe, die das Modul neu starten sollte, und entfernt sie."] }) },
+      { n: "Alte Version ungeprüft", who: "Du", d: "Schnell eine ältere SysWatch-Version überall installieren.",
+        act: () => ({ dmg: 5, fx: { schaden: 1 }, msg: ["Die alte Version läuft ...", "... und niemand weiß, seit wann der Build-Server des Herstellers schon kompromittiert war."],
+          lesson: "Auch ältere Versionen können betroffen sein. Nur gegen verifizierte Hashwerte und Stücklisten wiederherstellen." }) },
+      { n: "Verifizierte Version ausrollen", who: "Felix", d: "Saubere, gegen Hashwerte geprüfte Version gestaffelt verteilen.",
+        act: B => B.hp > 45
+          ? { dmg: 0, fx: { schaden: 1 }, msg: ["Zu früh! Auf den zwölf Servern lebt die zweite Stufe noch."], lesson: "Erst die kompromittierten Systeme bereinigen, dann die verifizierte Version gestaffelt ausrollen." }
+          : { dmg: 60, msg: ["Die geprüfte Version läuft in Ringen auf allen Servern. Das Nest ist leer!"], praise: "Verifizierte Version erst nach vollständiger Bereinigung gestaffelt ausgerollt." } }
+    ],
+    enemy: B => [
+      { w: B.used.rb ? 0 : 3, text: "KUCKUCKSEI liest SEPA-Dateien vor der Übertragung!", fx: { schaden: 1 } },
+      { w: B.used.rot ? 0 : 3, text: "KUCKUCKSEI nutzt das Dienstkonto im Zahlungsverkehr!", heal: 15 },
+      { w: B.used.pay ? 0 : 2, text: "KUCKUCKSEI tauscht eine Empfänger-IBAN aus!", fx: { schaden: 1 }, once: "iban" },
+      { w: 1, text: "KUCKUCKSEI versteckt sich in einer geplanten Aufgabe ..." }
+    ],
+    win: ["Das KUCKUCKSEI ist entfernt!", "Dein Team erhält 999 Erfahrungspunkte. Das Nest gehört wieder euch."]
+  }
+};
+
+CASES.kuckuck = {
+  id: "kuckuck", num: 7, title: "KUCKUCK", sub: "Supply-Chain-Angriff über ein signiertes Update", diff: 3,
+  desc: "Mo, 09:10 Uhr. Ein korrekt signiertes Hersteller-Update funkt zu fremden Servern. Auf 2.400 Systemen, auch im Zahlungsverkehr der Banken.",
+  saveKey: "csirt_case_kuckuck_v1", start: { time: 9 * 60 + 10, x: 16, y: 16, dir: 1, days: ["Mo", "Di", "Mi", "Do"] },
+  fastLimit: 17 * 60, fastText: "Wer vor 17:00 Uhr fertig wird, bekommt einen Tempo-Bonus.",
+  map: [
+    "##################################",
+    "#==V====W==#===W==W===#==W=======#",
+    "#.DD.DD.DD.#.DD..B.DD.#.DD..DD...#",
+    "#P........P#P........P#P........P#",
+    "#####d##########d###########d#####",
+    "#................................#",
+    "####d####..#==========#..####d####",
+    "#.......#..#,,,,,,,,,,#..#.......#",
+    "#.DD.DD.#..#,SS,SS,SS,#..#.TTTTT.#",
+    "#.......#..#,,,,,,,,,,#..#.TTTTT.#",
+    "#.DD.DD.#..d,SS,FF,SS,d..#P.....P#",
+    "#.......#..#,,,,,,,,,,#..#########",
+    "#.DD..B.#..#,SS,SS,SS,#..#_______#",
+    "#.......#..#,,,,,,,,,,#..#__TTT__#",
+    "#P.....P#..############..#P_____P#",
+    "#########..############..####d####",
+    "#................................#",
+    "#####d################d###########",
+    "#,K,,,,,,,,#.....................#",
+    "#,,TT,,,,,C#.DD.DD.DD.MM.DD.DD.DD#",
+    "#,,,,,,,,,,#P...................P#",
+    "##################################"
+  ],
+  rooms: [
+    { n: "SOC", x0: 1, y0: 1, x1: 10, y1: 3 }, { n: "Forensik", x0: 12, y0: 1, x1: 21, y1: 3 }, { n: "Lieferanten", x0: 23, y0: 1, x1: 32, y1: 3 },
+    { n: "Release-Management", x0: 1, y0: 7, x1: 7, y1: 14 }, { n: "Build-Serverraum", x0: 12, y0: 7, x1: 21, y1: 13 },
+    { n: "Krisenstab", x0: 26, y0: 7, x1: 32, y1: 10 }, { n: "Vorstand", x0: 26, y0: 12, x1: 32, y1: 14 },
+    { n: "Küche", x0: 1, y0: 18, x1: 10, y1: 20 }, { n: "Entwicklung", x0: 12, y0: 18, x1: 32, y1: 20 }
+  ],
+  floors: { Lieferanten: ["#9c8a6e", "#928064"], "Release-Management": ["#4f6f5a", "#476652"], "Build-Serverraum": ["#d3dbe3", "#c1ccd6"], Entwicklung: ["#7f8fa6", "#76869c"] },
+  alarmPos: [[5, 2], [16, 9]],
+  videoWall: f => f.b1 ? "SOC-Wand: DNS-Anfragen an cdn-syswatch-update.net: 0. Der Kuckuck schweigt." : "SOC-Wand: 2.400 Server, alle vier Stunden ein Ruf an cdn-syswatch-update.net.",
+  npcs: NPCS7, npcNew: npcNew7, talk: talk7, interact: interact7, objectives: objectives7, battles: BATTLES7,
+  titleModel: "cuckoo",
+  handbook: f => !f.b1 ? "Lieferkette, Kapitel 1: Signiert heißt nicht sauber. Rollout stoppen, Kommunikation zum Angreifer kappen, Beweise erhalten, Hersteller einbinden."
+    : !f.b2 ? "Lieferkette, Kapitel 2: Angreifer aktivieren oft nur wertvolle Ziele. Dort neu aufbauen, Geheimnisse wechseln, Daten prüfen."
+    : "Lieferkette, Kapitel 3: Prüfung vor Rollout, Testringe, Egress-Kontrolle für Agenten, minimale Rechte, Notfallübungen mit Dienstleistern.",
+  intro: n => [
+    S("", "Montag, 09:10 Uhr. FinOps Rechenzentrum AG, Release-Zentrum."),
+    S("", "Du bist " + n + ", CSIRT-Manager. Ein neuer Wochenstart, ein neuer Kaffee."),
+    DIFF(),
+    { t: "sfx", n: "alarm" },
+    S("Lena", "Kannst du ins SOC kommen, oben links? Unsere eigene Monitoring-Software benimmt sich merkwürdig."),
+    HINT()
+  ],
+  marks: f => { const m = []; if ((f.freeze && f.esc && !f.b1) || (comms7() && !f.b2)) m.push([16, 10, 2.0]); if (f.b1 && !f.call) m.push([22, 19, 1.5]); return m; },
+  alarm: f => ({ active: f.k1 && !f.b2, critical: f.k1 && !f.b1, color: (f.k1 && !f.b1) ? undefined : "#38ff7a" }),
+  dawn: f => f.review ? 0.9 : 0.5
 };
 
 
@@ -2270,7 +4157,7 @@ function useMove(i) {
   if (dmg) dmg = Math.round(dmg * (0.85 + Math.random() * 0.3));
   const lines = [mv.who + " setzt " + mv.n + " ein!"];
   if (G.stats.team <= 0 && dmg) { dmg = Math.floor(dmg / 2); lines.push("Dein Team ist erschöpft. Alles dauert doppelt so lange ..."); }
-  G.stats.team = clamp(G.stats.team - 1); G.time += 10; updHud();
+  B.n = (B.n || 0) + 1; if (B.n % 2 === 0) G.stats.team = clamp(G.stats.team - 1); G.time += 10; updHud();
   lines.push(() => { if (dmg) { B.hp = Math.max(0, B.hp - dmg); B.flash = 24; SFX.hit(); hitFx(); } updBattle(); });
   (r.msg || []).forEach(m => lines.push(m));
   lines.push(() => { if (r.fx) applyFx(r.fx, 0); if (r.lesson) addLesson(r.lesson); if (r.praise) addPraise(r.praise); if (r.set) G.flags[r.set] = true; if (r.ko && G.flags.hard && !G.over) G.over = r.ko; updBattle(); });
@@ -2319,7 +4206,7 @@ function menuA() {
   } else if (m === "TEAM") {
     h = '<div class="ptitle">TEAM &amp; STAKEHOLDER</div>' + NPCS.map(n => '<div class="li">' + esc(n.name) + " &middot; " + esc(n.role) + (npcNew(n) ? " (!)" : "") + "</div>").join("");
   } else if (m === "STEUERUNG") {
-    h = TOUCH ? '<div class="ptitle">STEUERUNG</div><div class="li">Steuerkreuz: laufen</div><div class="li">RENNEN gedrückt halten: schneller laufen</div><div class="li">A: sprechen, bestätigen</div><div class="li">B: zurück</div><div class="li">MENÜ: Menü öffnen</div><div class="li">Antworten und Kampfzüge kannst du auch direkt antippen.</div><div class="li">Ein (!) über einer Figur heißt: Es gibt Neuigkeiten.</div>' : '<div class="ptitle">STEUERUNG</div><div class="li">Pfeiltasten / WASD: laufen</div><div class="li">Shift halten: rennen</div><div class="li">Leertaste / Enter / Z: sprechen, bestätigen</div><div class="li">X / Backspace: zurück</div><div class="li">Esc / M: Menü</div><div class="li">Ein (!) über einer Figur heißt: Es gibt Neuigkeiten.</div><div class="li">Das Spiel speichert automatisch nach jedem Gespräch.</div>';
+    h = TOUCH ? '<div class="ptitle">STEUERUNG</div><div class="li">Steuerkreuz: laufen</div><div class="li">A gedrückt halten beim Laufen: rennen</div><div class="li">A: sprechen, bestätigen</div><div class="li">B: zurück</div><div class="li">MENÜ: Menü öffnen</div><div class="li">Antworten und Kampfzüge kannst du auch direkt antippen.</div><div class="li">Ein (!) über einer Figur heißt: Es gibt Neuigkeiten.</div>' : '<div class="ptitle">STEUERUNG</div><div class="li">Pfeiltasten / WASD: laufen</div><div class="li">Leertaste (oder Shift) gedrückt halten beim Laufen: rennen</div><div class="li">Leertaste / Enter / Z: sprechen, bestätigen</div><div class="li">X / Backspace: zurück</div><div class="li">Esc / M: Menü</div><div class="li">Ein (!) über einer Figur heißt: Es gibt Neuigkeiten.</div><div class="li">Das Spiel speichert automatisch nach jedem Gespräch.</div>';
   }
   $("#panel").innerHTML = h + '<div class="pfoot">' + (TOUCH ? "Antippen" : "Leertaste") + ': zurück</div>';
   $("#panel").classList.remove("hidden"); mode = "panel";
@@ -2441,6 +4328,7 @@ function enterWorld() {
   mode = "world"; lastObj = "";
   $("#debrief").classList.add("hidden");
   $("#hud").classList.remove("hidden"); updHud(); checkQuest();
+  if (typeof snapCam3D === "function") snapCam3D();
 }
 
 /* ================= Eingabe ================= */
@@ -2540,7 +4428,7 @@ function update() {
   }
   if (bumpCd > 0) bumpCd--;
   if (P && P.moving) {
-    const sp = held.Shift ? 2 : 1;
+    const sp = (held.Shift || held[" "] || held.Enter || held.z || held.Z) ? 2 : 1;
     const tx = P.tx * TS, ty = P.ty * TS;
     P.px += Math.sign(tx - P.px) * Math.min(sp, Math.abs(tx - P.px));
     P.py += Math.sign(ty - P.py) * Math.min(sp, Math.abs(ty - P.py));
@@ -2600,7 +4488,7 @@ function setupTouch() {
 }
 setupTap(); setupTouch();
 
-window.__T = { get renderer() { return renderer; }, selectCase, CASES, get CASE() { return CASE; }, get TM() { return TM; }, titleA, get C() { return C; }, retryFromSave, showGameOver, get G() { return G; }, get P() { return P; }, get mode() { return mode; }, get B() { return B; }, run, talk, interactTile, startBattle, objectives, MAP, NPCS, newGame, enterWorld, showDebrief };
+window.__T = { get renderer() { return renderer; }, selectCase, CASES, get CASE() { return CASE; }, get TM() { return TM; }, titleA, get C() { return C; }, retryFromSave, showGameOver, get G() { return G; }, get P() { return P; }, get mode() { return mode; }, get B() { return B; }, run, talk, interactTile, startBattle, objectives, get MAP() { return MAP; }, get NPCS() { return NPCS; }, newGame, enterWorld, showDebrief };
 selectCase("nachtfalke");
 init3D(); fitScreen(); showTitle();
 requestAnimationFrame(loop);
