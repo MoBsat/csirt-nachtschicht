@@ -2,7 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>CSIRT: Nachtschicht 3D</title>
 <style>
 html,body{margin:0;height:100%;background:#05070d;overflow:hidden}
@@ -74,6 +76,38 @@ body{display:flex;align-items:center;justify-content:center}
 .dh{color:#a9b8ef;margin-top:4px}
 #debrief .li::before{color:#ffd23f}
 #debrief .pfoot{color:#a9b8ef}
+.box,#tmenu,#debrief,#gameover,#nameEntry{pointer-events:auto}
+.opt,.mv,.mi,#tmenu div,[data-go]{cursor:pointer}
+#nameOk{display:block;margin:8px auto 0;font:bold 9px Consolas,monospace;background:#e84a5f;color:#fff;border:1px solid #fff;border-radius:3px;padding:2px 14px;cursor:pointer}
+#gameover{position:absolute;inset:0;background:rgba(40,6,14,.9);color:#fff;text-align:center;padding:10px 14px;box-sizing:border-box;font-size:7px;line-height:9px}
+.go-t{font-size:16px;line-height:18px;color:#ff5a6a;text-shadow:1px 1px 0 #000,2px 2px 0 #24305e;margin-top:6px;letter-spacing:1px}
+.go-r{margin-top:6px;font-size:7px;line-height:9px;color:#ffe3e6}
+.go-l{margin-top:2px;color:#ffd23f;text-align:left}
+#gameover .dh{color:#a9b8ef;margin-top:6px;text-align:left}
+.go-m{margin-top:9px;display:inline-block;text-align:left;background:rgba(20,26,48,.85);border:1px solid #a9b8ef;border-radius:3px;padding:3px 8px;font-size:8px;line-height:12px}
+.go-m div{padding-left:10px;position:relative}
+.go-m div.sel::before{content:"\25B6";position:absolute;left:0;color:#e84a5f}
+/* Touch-Steuerung */
+body.touch{touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none;-webkit-touch-callout:none}
+#touch{position:fixed;inset:0;pointer-events:none;z-index:10}
+#touch .tb{pointer-events:auto;position:absolute;background:rgba(20,26,48,.75);color:#fff;border:2px solid #a9b8ef;-webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;touch-action:none;font:bold 20px Consolas,"Courier New",monospace;display:flex;align-items:center;justify-content:center;padding:0;margin:0}
+#touch .tb.on{background:#e84a5f;border-color:#fff}
+#dpad{position:absolute;width:168px;height:168px}
+#dpad .tb{width:58px;height:58px;border-radius:12px}
+#dpad .up{left:55px;top:0}#dpad .down{left:55px;bottom:0}#dpad .left{left:0;top:55px}#dpad .right{right:0;top:55px}
+#abtn{position:absolute;width:150px;height:120px}
+#abtn .ab{width:74px;height:74px;right:0;top:0;border-radius:50%;background:rgba(232,74,95,.85);font-size:26px}
+#abtn .bb{width:58px;height:58px;left:0;bottom:0;border-radius:50%;font-size:22px}
+#touch .menub,#touch .runb{width:92px;height:36px;border-radius:18px;font-size:13px}
+body.portrait #dpad{left:18px;bottom:calc(30px + env(safe-area-inset-bottom))}
+body.portrait #abtn{right:18px;bottom:calc(54px + env(safe-area-inset-bottom))}
+body.portrait #touch .menub{right:18px;bottom:calc(196px + env(safe-area-inset-bottom))}
+body.portrait #touch .runb{left:18px;bottom:calc(214px + env(safe-area-inset-bottom))}
+body:not(.portrait) #dpad{left:max(10px,env(safe-area-inset-left));top:50%;margin-top:-60px;transform:scale(.85);transform-origin:left top}
+body:not(.portrait) #abtn{right:max(10px,env(safe-area-inset-right));top:50%;margin-top:-40px;transform:scale(.85);transform-origin:right top}
+body:not(.portrait) #touch .menub{right:max(14px,env(safe-area-inset-right));top:12px}
+body:not(.portrait) #touch .runb{left:max(14px,env(safe-area-inset-left));top:12px}
 </style>
 </head>
 <body>
@@ -102,9 +136,25 @@ body{display:flex;align-items:center;justify-content:center}
     <div class="tt" style="font-size:11px;margin-top:36px">Wie hei&szlig;t du?</div>
     <input id="nameInput" maxlength="12" value="Manager">
     <div class="ts" style="margin-top:8px">Enter zum Best&auml;tigen</div>
+    <button id="nameOk">OK</button>
   </div>
   <div id="debrief" class="hidden"></div>
+  <div id="gameover" class="hidden"></div>
 </div>
+</div>
+<div id="touch" class="hidden">
+  <div id="dpad">
+    <button data-k="ArrowUp" class="tb up">&#9650;</button>
+    <button data-k="ArrowLeft" class="tb left">&#9664;</button>
+    <button data-k="ArrowRight" class="tb right">&#9654;</button>
+    <button data-k="ArrowDown" class="tb down">&#9660;</button>
+  </div>
+  <div id="abtn">
+    <button data-k="x" class="tb bb">B</button>
+    <button data-k=" " class="tb ab">A</button>
+  </div>
+  <button data-k="Escape" class="tb menub">MEN&Uuml;</button>
+  <button data-k="Shift" class="tb runb">RENNEN</button>
 </div>
 
 <script>
@@ -125,12 +175,21 @@ const PAL = ["#e0f8d0", "#88c070", "#346856", "#081820"];
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const clamp = v => Math.max(0, Math.min(10, v));
+const TOUCH = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || (("ontouchstart" in window) && navigator.maxTouchPoints > 0);
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 function fitScreen() {
-  const k = Math.min(innerWidth / W, innerHeight / H);
+  const vw = innerWidth, vh = innerHeight, portrait = vh > vw;
+  let aw = vw, ah = vh;
+  if (TOUCH) { if (portrait) ah = vh - Math.min(vh * 0.42, 340); else aw = vw - 2 * Math.min(vw * 0.2, 180); }
+  const k = Math.min(aw / W, ah / H);
+  const wr = $("#wrap");
   $("#screen").style.transform = "scale(" + k + ")";
-  $("#wrap").style.width = (W * k) + "px";
-  $("#wrap").style.height = (H * k) + "px";
+  wr.style.width = (W * k) + "px"; wr.style.height = (H * k) + "px";
+  wr.style.position = "fixed";
+  wr.style.left = Math.round((vw - W * k) / 2) + "px";
+  wr.style.top = Math.round(TOUCH && portrait ? Math.max(8, (ah - H * k) / 2) : (vh - H * k) / 2) + "px";
+  document.body.classList.toggle("portrait", portrait);
   if (renderer) renderer.setSize(Math.round(W * k), Math.round(H * k));
 }
 addEventListener("resize", fitScreen);
@@ -442,9 +501,9 @@ function winFx() { if (bMoth) burst(bMoth.position.x, bMoth.position.y, bMoth.po
 
 /* ---- Initialisierung ---- */
 function init3D() {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer = new THREE.WebGLRenderer({ antialias: !TOUCH, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, TOUCH ? 1.5 : 2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = TOUCH ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   $("#gl").appendChild(renderer.domElement);
   camPos = new THREE.Vector3(14, 9.5, 18.8); camLook = new THREE.Vector3(14, 0.4, 11); V1 = new THREE.Vector3();
   LEDG = EM("#1aff6a", 1); LEDR = EM("#ff2a2a", 1); LEDA = EM("#ffb300", 1);
@@ -455,7 +514,7 @@ function init3D() {
   moon = new THREE.DirectionalLight("#a9bbff", 0.6); moon.position.set(8, 22, 30); moon.target.position.set(18, 0, 10);
   scene.add(moon, moon.target); moon.castShadow = true;
   const sc = moon.shadow.camera; sc.left = -26; sc.right = 26; sc.top = 22; sc.bottom = -22; sc.near = 1; sc.far = 90;
-  moon.shadow.mapSize.set(2048, 2048); moon.shadow.bias = -0.0008;
+  moon.shadow.mapSize.set(TOUCH ? 1024 : 2048, TOUCH ? 1024 : 2048); moon.shadow.bias = -0.0008;
   pLight = new THREE.PointLight("#ffd9a0", 1.1, 8, 1.4); scene.add(pLight);
   alarmA = new THREE.PointLight("#ff2a2a", 0, 10, 1.2); alarmA.position.set(5.5, 2.2, 4.5);
   alarmB = new THREE.PointLight("#ff2a2a", 0, 10, 1.2); alarmB.position.set(28.5, 2.2, 4.5);
@@ -582,7 +641,9 @@ function clockStr(t) {
 }
 function applyFx(eff, time) {
   for (const k in eff) {
-    const d = eff[k]; if (!d) continue;
+    let d = eff[k]; if (!d) continue;
+    const harm = k === "schaden" ? d > 0 : d < 0;
+    if (harm && G.flags.hard) d = Math.sign(d) * Math.ceil(Math.abs(d) * 1.5);
     const old = G.stats[k]; G.stats[k] = clamp(old + d);
     const real = G.stats[k] - old;
     if (real) {
@@ -593,6 +654,12 @@ function applyFx(eff, time) {
   }
   if (time) G.time += time;
   updHud();
+  checkLose();
+}
+function checkLose() {
+  if (!G || !G.flags.hard || G.over) return;
+  if (G.stats.schaden >= 10) G.over = "Der Schaden ist außer Kontrolle geraten. Die Kernsysteme stehen still, und ein externer Krisenstab übernimmt.";
+  else if (G.stats.vertrauen <= 0) G.over = "Der Vorstand hat jedes Vertrauen in dich verloren und zieht dich mit sofortiger Wirkung vom Fall ab.";
 }
 function addLesson(t) { if (t && !G.lessons.includes(t)) G.lessons.push(t); }
 function addPraise(t) { if (t && !G.praises.includes(t)) G.praises.push(t); }
@@ -650,6 +717,7 @@ const BAT = id => ({ t: "battle", id });
 
 function run(steps) { Q = steps.concat(Q); step(); }
 function step() {
+  if (G && G.over && (!Q.length || Q[0].t !== "say")) { showGameOver(); return; }
   if (!Q.length) { closeDialog(); return; }
   const s = Q.shift();
   switch (s.t) {
@@ -669,7 +737,7 @@ function step() {
 function hideBoxes() { $("#dialog").classList.add("hidden"); $("#choice").classList.add("hidden"); }
 function closeDialog() {
   hideBoxes(); T = null; C = null;
-  if (mode !== "debrief" && mode !== "title") { mode = "world"; checkQuest(); saveGame(true); }
+  if (mode !== "debrief" && mode !== "title" && mode !== "gameover") { mode = "world"; checkQuest(); if (!G.over) saveGame(true); }
 }
 function paginate(text, max = 42, lines = 3) {
   const words = text.split(/\s+/), out = []; let line = "", buf = [];
@@ -701,12 +769,12 @@ function textA() {
   else { T = null; step(); }
 }
 function showChoice(s) {
-  mode = "choice"; C = { s, sel: 0 };
+  mode = "choice"; C = { s, sel: 0, opts: s.fixed ? s.o.slice() : shuffle(s.o.slice()) };
   $("#dialog").classList.add("hidden"); $("#choice").classList.remove("hidden");
   $("#cq").textContent = s.q; renderC();
 }
 function renderC() {
-  $("#copts").innerHTML = C.s.o.map((o, i) => '<div class="opt' + (i === C.sel ? " sel" : "") + '">' + esc(o.l) + "</div>").join("");
+  $("#copts").innerHTML = C.opts.map((o, i) => '<div class="opt' + (i === C.sel ? " sel" : "") + '" data-i="' + i + '">' + esc(o.l) + "</div>").join("");
 }
 function pick(o) {
   SFX.ok(); $("#choice").classList.add("hidden"); C = null;
@@ -714,6 +782,7 @@ function pick(o) {
   if (o.lesson) addLesson(o.lesson);
   if (o.praise) addPraise(o.praise);
   if (o.set) G.flags[o.set] = true;
+  if (o.ko && G.flags.hard && !G.over) G.over = o.ko;
   Q = (o.then || []).concat(Q); step();
 }
 
@@ -779,7 +848,7 @@ function talk(id) {
         { l: "Ich chatte selbst mit den Erpressern und verhandle, um Zeit zu gewinnen.", fx: { vertrauen: -1 }, time: 20,
           lesson: "Keine Verhandlungen im Alleingang: Das entscheidet der Vorstand, mit Rechtsberatung, LKA und ggf. spezialisierten Dienstleistern.",
           then: [S("Lena", "Die antworten mit einem Smiley und einer Frist. Toll.")] },
-        { l: "Zahlen! Dann ist der Spuk schnell vorbei.", fx: { vertrauen: -3, schaden: 1 }, time: 10,
+        { l: "Zahlen! Dann ist der Spuk schnell vorbei.", ko: "Du hast eigenmächtig 4,2 Mio. Euro Lösegeld freigegeben. Der Vorstand stellt dich mit sofortiger Wirkung frei.", fx: { vertrauen: -3, schaden: 1 }, time: 10,
           lesson: "Zahlen garantiert keine Entschlüsselung, finanziert die Täter, kann rechtliche Risiken bergen und ist keine Entscheidung des CSIRT.",
           then: [S("Lena", "Das ist nicht deine Entscheidung. Und wer sagt, dass die überhaupt entschlüsseln?")] }
       ]),
@@ -913,7 +982,7 @@ function talk(id) {
         { l: "Kein Kommentar.", fx: { vertrauen: -1 }, time: 5,
           lesson: "„Kein Kommentar“ erzeugt Gerüchte. Ein abgestimmtes Holding-Statement verschafft Zeit und Kontrolle.",
           then: [S("Sabine", "Dann schreibt er eben, was er auf Social Media findet ...")] },
-        { l: "Sag, es ist eine geplante Wartung.", fx: { vertrauen: -3 }, time: 5,
+        { l: "Sag, es ist eine geplante Wartung.", ko: "Die „Wartung“ fliegt nach einer Stunde auf. Schlagzeile im Finanzkurier: „IT-Dienstleister belügt seine Banken“. Du wirst vom Fall abgezogen.", fx: { vertrauen: -3 }, time: 5,
           lesson: "Falsche Aussagen fliegen auf. Danach ist das Vertrauen von Kunden, Presse und Aufsicht dauerhaft beschädigt.",
           then: [S("Sabine", "Eine Wartung ... mit Lösegeldforderung? Das glaubt uns niemand.")] }
       ]),
@@ -1102,7 +1171,7 @@ let B = null;
 function startBattle(id) {
   const d = BATTLES[id];
   const hp = d.hp + (id === "b1" && G.flags.early ? 30 : 0);
-  B = { id, d, hp, max: hp, used: {}, sel: 0, mode: "msg", msgs: [], text: "", shown: 0, flash: 0, shake: 0 };
+  B = { id, d, hp, max: hp, used: {}, sel: 0, mode: "msg", msgs: [], text: "", shown: 0, flash: 0, shake: 0, moves: shuffle(d.moves.slice()) };
   mode = "battle"; setupBattle3D(id);
   $("#battle").classList.remove("hidden");
   $("#ename").textContent = d.name; $("#esub").textContent = d.sub;
@@ -1126,15 +1195,15 @@ function nextBMsg() {
 function renderBBox() {
   const box = $("#bbox");
   if (B.mode === "msg") { box.innerHTML = '<div id="btext"></div>'; $("#btext").textContent = B.text.slice(0, B.shown); return; }
-  const mv = B.d.moves;
+  const mv = B.moves;
   box.innerHTML = '<div class="moves">' + mv.map((m, i) => {
     const used = (m.n === "Netz-Quarantäne" && B.used.q) || (m.n === "Admin-Konto sperren" && B.used.k) || (m.n === "C2-IPs blocken" && B.used.c2) ||
       (m.n.startsWith("krbtgt") && B.used.krb) || (m.n === "Webshell entfernen" && B.used.ws) || (m.n === "Passwörter + MFA" && B.used.mfa);
-    return '<div class="mv' + (i === B.sel ? " sel" : "") + (used ? " used" : "") + '">' + esc(m.n) + "</div>";
+    return '<div class="mv' + (i === B.sel ? " sel" : "") + (used ? " used" : "") + '" data-i="' + i + '">' + esc(m.n) + "</div>";
   }).join("") + '</div><div class="mdesc">' + esc(mv[B.sel].who + ": " + mv[B.sel].d) + "</div>";
 }
 function useMove(i) {
-  const mv = B.d.moves[i]; SFX.ok();
+  const mv = B.moves[i]; SFX.ok();
   const r = mv.act(B) || {};
   let dmg = r.dmg || 0;
   if (dmg) dmg = Math.round(dmg * (0.85 + Math.random() * 0.3));
@@ -1144,7 +1213,7 @@ function useMove(i) {
   lines.push(() => { if (dmg) { B.hp = Math.max(0, B.hp - dmg); B.flash = 24; SFX.hit(); hitFx(); } updBattle(); });
   (r.msg || []).forEach(m => lines.push(m));
   lines.push(() => { if (r.fx) applyFx(r.fx, 0); if (r.lesson) addLesson(r.lesson); if (r.praise) addPraise(r.praise); updBattle(); });
-  bQueue(lines, () => { if (B.hp <= 0) battleWon(); else enemyTurn(); });
+  bQueue(lines, () => { if (G.over) return showGameOver(); if (B.hp <= 0) battleWon(); else enemyTurn(); });
 }
 function enemyTurn() {
   const acts = B.d.enemy(B).filter(a => a.w > 0);
@@ -1157,7 +1226,7 @@ function enemyTurn() {
     if (a.set) G.flags[a.set] = true;
     if (a.once) B.used[a.once] = 1;
     updBattle();
-  }], () => { B.mode = "menu"; renderBBox(); });
+  }], () => { if (G.over) return showGameOver(); B.mode = "menu"; renderBBox(); });
 }
 function battleWon() {
   SFX.win(); winFx();
@@ -1170,7 +1239,7 @@ let M = null;
 const MENU = ["LAGEBILD", "AUFTRÄGE", "TEAM", "STEUERUNG", "SPEICHERN", "TON", "ZURÜCK"];
 function openMenu() { mode = "menu"; M = { sel: 0 }; renderMenu(); $("#menu").classList.remove("hidden"); SFX.sel(); }
 function renderMenu() {
-  $("#menu").innerHTML = MENU.map((m, i) => '<div class="mi' + (i === M.sel ? " sel" : "") + '">' + (m === "TON" ? "TON: " + (muted ? "AUS" : "AN") : m) + "</div>").join("");
+  $("#menu").innerHTML = MENU.map((m, i) => '<div class="mi' + (i === M.sel ? " sel" : "") + '" data-i="' + i + '">' + (m === "TON" ? "TON: " + (muted ? "AUS" : "AN") : m) + "</div>").join("");
 }
 function closeMenu() { $("#menu").classList.add("hidden"); mode = "world"; }
 function menuA() {
@@ -1189,9 +1258,9 @@ function menuA() {
   } else if (m === "TEAM") {
     h = '<div class="ptitle">TEAM &amp; STAKEHOLDER</div>' + NPCS.map(n => '<div class="li">' + esc(n.name) + " &middot; " + esc(n.role) + (npcNew(n) ? " (!)" : "") + "</div>").join("");
   } else if (m === "STEUERUNG") {
-    h = '<div class="ptitle">STEUERUNG</div><div class="li">Pfeiltasten / WASD: laufen</div><div class="li">Shift halten: rennen</div><div class="li">Leertaste / Enter / Z: sprechen, bestätigen</div><div class="li">X / Backspace: zurück</div><div class="li">Esc / M: Menü</div><div class="li">Ein (!) über einer Figur heißt: Es gibt Neuigkeiten.</div><div class="li">Das Spiel speichert automatisch nach jedem Gespräch.</div>';
+    h = TOUCH ? '<div class="ptitle">STEUERUNG</div><div class="li">Steuerkreuz: laufen</div><div class="li">RENNEN gedrückt halten: schneller laufen</div><div class="li">A: sprechen, bestätigen</div><div class="li">B: zurück</div><div class="li">MENÜ: Menü öffnen</div><div class="li">Antworten und Kampfzüge kannst du auch direkt antippen.</div><div class="li">Ein (!) über einer Figur heißt: Es gibt Neuigkeiten.</div>' : '<div class="ptitle">STEUERUNG</div><div class="li">Pfeiltasten / WASD: laufen</div><div class="li">Shift halten: rennen</div><div class="li">Leertaste / Enter / Z: sprechen, bestätigen</div><div class="li">X / Backspace: zurück</div><div class="li">Esc / M: Menü</div><div class="li">Ein (!) über einer Figur heißt: Es gibt Neuigkeiten.</div><div class="li">Das Spiel speichert automatisch nach jedem Gespräch.</div>';
   }
-  $("#panel").innerHTML = h + '<div class="pfoot">Leertaste: zurück</div>';
+  $("#panel").innerHTML = h + '<div class="pfoot">' + (TOUCH ? "Antippen" : "Leertaste") + ': zurück</div>';
   $("#panel").classList.remove("hidden"); mode = "panel";
 }
 
@@ -1201,17 +1270,19 @@ function showDebrief() {
   const s = G.stats;
   let score = (10 - s.schaden) * 3 + s.vertrauen * 3 + s.team + s.beweise * 2 + G.praises.length * 3 - G.lessons.length * 3;
   const fast = G.time <= 12 * 60; if (fast) score += 5;
+  const retries = G.retries || 0; score -= retries * 5; if (G.flags.hard) score += 10;
   const grade = score >= 100 ? "S" : score >= 80 ? "A" : score >= 60 ? "B" : score >= 40 ? "C" : "D";
   const title = { S: "Eiserner Krisenmanager", A: "Souveräner Incident Commander", B: "Solide Feuerwehr", C: "Glücklicher Überlebender", D: "Chaos-Pilot" }[grade];
   const pages = [];
   pages.push('<div class="grade">' + grade + '</div><div style="font-size:9px;line-height:11px">DEBRIEFING</div><div>' + esc(G.name) + ": „" + title + "“</div>" +
     '<div class="dh">ENDSTAND (' + clockStr() + ")</div>" +
     ["schaden", "vertrauen", "team", "beweise"].map(k => '<div class="prow"><span>' + LABEL[k] + '</span><span class="bar"><i style="width:' + s[k] * 10 + '%"></i></span><span>' + s[k] + "/10</span></div>").join("") +
-    '<div class="dh">Punkte: ' + score + (fast ? " (inkl. Tempo-Bonus)" : "") + " &middot; Gute Entscheidungen: " + G.praises.length + " &middot; Lernpunkte: " + G.lessons.length + "</div>");
+    '<div class="dh">Punkte: ' + score + (fast ? " (inkl. Tempo-Bonus)" : "") + " &middot; Gute Entscheidungen: " + G.praises.length + " &middot; Lernpunkte: " + G.lessons.length + "</div>" +
+    '<div class="dh">Schwierigkeit: ' + (G.flags.hard ? "Hart (+10)" : "Normal") + (retries ? " &middot; Neustarts: " + retries + " (-" + retries * 5 + ")" : "") + "</div>");
   const chunk = (arr, head) => { for (let i = 0; i < arr.length; i += 3) pages.push('<div class="dh" style="margin-top:0">' + head + (arr.length > 3 ? " (" + (i / 3 + 1) + "/" + Math.ceil(arr.length / 3) + ")" : "") + "</div>" + arr.slice(i, i + 3).map(t => '<div class="li">' + esc(t) + "</div>").join("")); };
   chunk(G.praises.length ? G.praises : ["Leider keine. Nächstes Mal wird es besser."], "DAS LIEF GUT");
   chunk(G.lessons.length ? G.lessons : ["Keine Fehler! Respekt."], "LERNPUNKTE");
-  pages.push('<div class="dh" style="margin-top:0">DANKE FÜRS SPIELEN</div><div class="li">Jede Entscheidung hatte eine bessere und eine schlechtere Variante. Probier eine andere Route.</div><div class="li">Tipp: Wer in unter 9 Stunden Spielzeit fertig wird, bekommt einen Tempo-Bonus.</div><div style="margin-top:8px">Leertaste: zurück zum Titel</div>');
+  pages.push('<div class="dh" style="margin-top:0">DANKE FÜRS SPIELEN</div><div class="li">Jede Entscheidung hatte eine bessere und eine schlechtere Variante. Probier eine andere Route.</div><div class="li">Tipp: Wer in unter 9 Stunden Spielzeit fertig wird, bekommt einen Tempo-Bonus.</div><div style="margin-top:8px">' + (TOUCH ? "Antippen" : "Leertaste") + ': zurück zum Titel</div>');
   D = { pages, i: 0 };
   renderDebrief(); $("#debrief").classList.remove("hidden");
   $("#hud").classList.add("hidden"); $("#quest").classList.add("hidden");
@@ -1221,17 +1292,41 @@ function showDebrief() {
 let D = null;
 function renderDebrief() { $("#debrief").innerHTML = D.pages[D.i] + '<div class="pfoot">' + (D.i + 1) + "/" + D.pages.length + " &#9660;</div>"; }
 
+/* ================= Ausscheiden ================= */
+let GO = { sel: 0 };
+function showGameOver() {
+  mode = "gameover"; Q = []; T = null; C = null; hideBoxes();
+  $("#battle").classList.add("hidden"); B = null;
+  $("#quest").classList.add("hidden"); $("#menu").classList.add("hidden"); $("#panel").classList.add("hidden");
+  SFX.bad(); setTimeout(() => jingle([392, 330, 262, 196], 0.2, 0.22), 250);
+  GO = { sel: 0 }; renderGameOver(); $("#gameover").classList.remove("hidden");
+}
+function renderGameOver() {
+  const last = G.lessons[G.lessons.length - 1];
+  $("#gameover").innerHTML = '<div class="go-t">AUSGESCHIEDEN</div><div class="go-r">' + esc(G.over) + "</div>" +
+    (last ? '<div class="dh">LERNPUNKT</div><div class="go-l">' + esc(last) + "</div>" : "") +
+    '<div class="go-m"><div data-go="retry" class="' + (GO.sel === 0 ? "sel" : "") + '">WEITER AB SPEICHERPUNKT</div><div data-go="title" class="' + (GO.sel === 1 ? "sel" : "") + '">ZUM TITEL</div></div>';
+}
+function retryFromSave() {
+  const lessons = G.lessons.slice(), retries = (G.retries || 0) + 1;
+  $("#gameover").classList.add("hidden");
+  if (!loadGame()) { showTitle(); return; }
+  lessons.forEach(addLesson); G.retries = retries;
+  enterWorld(); saveGame(true); toast("Zurück am letzten Speicherpunkt");
+}
+
 /* ================= Titel ================= */
 let TM = { sel: 0 };
 function titleOptions() { return hasSave() ? ["WEITERSPIELEN", "NEUES SPIEL"] : ["NEUES SPIEL"]; }
 function renderTitle() {
   const o = titleOptions(); if (TM.sel >= o.length) TM.sel = 0;
-  $("#tmenu").innerHTML = o.map((t, i) => '<div class="' + (i === TM.sel ? "sel" : "") + '">' + t + "</div>").join("");
+  $("#tmenu").innerHTML = o.map((t, i) => '<div class="' + (i === TM.sel ? "sel" : "") + '" data-i="' + i + '">' + t + "</div>").join("");
 }
 function showTitle() {
   mode = "title"; TM.sel = 0; renderTitle();
   ["#title"].forEach(s => $(s).classList.remove("hidden"));
-  ["#debrief", "#nameEntry", "#battle", "#menu", "#panel", "#hud", "#quest"].forEach(s => $(s).classList.add("hidden"));
+  ["#debrief", "#nameEntry", "#battle", "#menu", "#panel", "#hud", "#quest", "#gameover"].forEach(s => $(s).classList.add("hidden"));
+  B = null; Q = []; T = null; C = null;
   hideBoxes();
 }
 function titleA() {
@@ -1247,10 +1342,15 @@ function confirmName() {
   run([
     S("", "Dienstag, 02:47 Uhr. FinOps Rechenzentrum AG."),
     S("", "IT-Dienstleister für rund 700 Banken. Du bist " + n + ", CSIRT-Manager, und hast heute Rufbereitschaft."),
+    { t: "choice", fixed: true, q: "Wähle deine Schwierigkeit:", o: [
+      { l: "NORMAL: Fehler kosten Punkte, aber du kannst nicht ausscheiden.", then: [S("", "Schwierigkeit: Normal. Viel Erfolg!")] },
+      { l: "HART: Fehler wiegen 1,5-mal so schwer. Bei Schaden 10, Vertrauen 0 oder einem groben Fehler scheidest du aus.", set: "hard",
+        then: [S("", "Schwierigkeit: Hart. Nach dem Ausscheiden geht es ab dem letzten Speicherpunkt weiter. Das Spiel speichert nach jedem abgeschlossenen Gespräch.")] }
+    ] },
     { t: "sfx", n: "alarm" },
     S("Handy", "BRRR! BRRR! Lena aus dem SOC ruft an."),
     S("Lena", "Komm sofort ins SOC, oben links. Wir haben ein Problem. Ein großes."),
-    S("", "Pfeiltasten: laufen. Leertaste: sprechen. Esc: Menü. Ein (!) über einer Figur zeigt, wer Neuigkeiten hat.")
+    S("", TOUCH ? "Steuerkreuz: laufen. A: sprechen. MENÜ: Menü. Ein (!) über einer Figur zeigt, wer Neuigkeiten hat." : "Pfeiltasten: laufen. Leertaste: sprechen. Esc: Menü. Ein (!) über einer Figur zeigt, wer Neuigkeiten hat.")
   ]);
 }
 function enterWorld() {
@@ -1284,9 +1384,9 @@ addEventListener("keydown", e => {
       break;
     case "text": if (isA(k) || isB(k)) textA(); break;
     case "choice":
-      if (up) { C.sel = (C.sel + C.s.o.length - 1) % C.s.o.length; renderC(); SFX.sel(); }
-      if (down) { C.sel = (C.sel + 1) % C.s.o.length; renderC(); SFX.sel(); }
-      if (isA(k)) pick(C.s.o[C.sel]);
+      if (up) { C.sel = (C.sel + C.opts.length - 1) % C.opts.length; renderC(); SFX.sel(); }
+      if (down) { C.sel = (C.sel + 1) % C.opts.length; renderC(); SFX.sel(); }
+      if (isA(k)) pick(C.opts[C.sel]);
       break;
     case "menu":
       if (up) { M.sel = (M.sel + MENU.length - 1) % MENU.length; renderMenu(); SFX.sel(); }
@@ -1302,13 +1402,18 @@ addEventListener("keydown", e => {
       if (B.mode === "msg") {
         if (isA(k) || isB(k)) { if (B.shown < B.text.length) { B.shown = B.text.length; renderBBox(); } else { SFX.sel(); nextBMsg(); } }
       } else {
-        const n = B.d.moves.length;
+        const n = B.moves.length;
         if (left && B.sel % 2) B.sel--; if (right && B.sel % 2 === 0 && B.sel + 1 < n) B.sel++;
         if (up && B.sel >= 2) B.sel -= 2; if (down && B.sel + 2 < n) B.sel += 2;
         if (up || down || left || right) { renderBBox(); SFX.sel(); }
         if (isA(k)) useMove(B.sel);
         if (isB(k)) { B.mode = "msg"; bQueue(["Vor einem Sicherheitsvorfall kann man nicht weglaufen!"], () => { B.mode = "menu"; renderBBox(); }); }
       }
+      break;
+    case "gameover":
+      if (up || down) { GO.sel = 1 - GO.sel; renderGameOver(); SFX.sel(); }
+      if (isA(k)) { SFX.ok(); GO.sel === 0 ? retryFromSave() : showTitle(); }
+      if (isB(k)) showTitle();
       break;
     case "debrief":
       if (isA(k)) { SFX.sel(); if (D.i < D.pages.length - 1) { D.i++; renderDebrief(); } else showTitle(); }
@@ -1374,7 +1479,42 @@ function loop(ts) {
 }
 
 /* ================= Start ================= */
-window.__T = { get renderer() { return renderer; }, get G() { return G; }, get P() { return P; }, get mode() { return mode; }, get B() { return B; }, run, talk, interactTile, startBattle, objectives, MAP, NPCS, newGame, enterWorld, showDebrief };
+/* ================= Touch & Antippen ================= */
+function setupTap() {
+  $("#copts").addEventListener("click", e => { const o = e.target.closest(".opt"); if (!o || mode !== "choice" || !C) return; C.sel = +o.dataset.i; pick(C.opts[C.sel]); });
+  $("#dialog").addEventListener("click", () => { if (mode === "text" && T) textA(); });
+  $("#bbox").addEventListener("click", e => {
+    if (mode !== "battle" || !B) return;
+    const m = e.target.closest(".mv");
+    if (B.mode === "menu" && m) { B.sel = +m.dataset.i; renderBBox(); useMove(B.sel); }
+    else if (B.mode === "msg") { if (B.shown < B.text.length) { B.shown = B.text.length; renderBBox(); } else { SFX.sel(); nextBMsg(); } }
+  });
+  $("#menu").addEventListener("click", e => { const m = e.target.closest(".mi"); if (!m || mode !== "menu") return; M.sel = +m.dataset.i; renderMenu(); menuA(); });
+  $("#panel").addEventListener("click", () => { if (mode === "panel") { $("#panel").classList.add("hidden"); mode = "menu"; SFX.sel(); } });
+  $("#tmenu").addEventListener("click", e => { const d = e.target.closest("div[data-i]"); if (!d || mode !== "title") return; TM.sel = +d.dataset.i; titleA(); });
+  $("#debrief").addEventListener("click", () => { if (mode !== "debrief") return; SFX.sel(); if (D.i < D.pages.length - 1) { D.i++; renderDebrief(); } else showTitle(); });
+  $("#gameover").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (!b || mode !== "gameover") return; SFX.ok(); b.dataset.go === "retry" ? retryFromSave() : showTitle(); });
+  $("#nameOk").addEventListener("click", () => { if (mode === "name") confirmName(); });
+}
+function setupTouch() {
+  if (!TOUCH) return;
+  document.body.classList.add("touch"); $("#touch").classList.remove("hidden");
+  document.querySelectorAll("#touch .tb").forEach(b => {
+    const k = b.dataset.k;
+    const down = e => { e.preventDefault(); if (b.classList.contains("on")) return; b.classList.add("on"); dispatchEvent(new KeyboardEvent("keydown", { key: k })); };
+    const up = e => { e.preventDefault(); if (!b.classList.contains("on")) return; b.classList.remove("on"); dispatchEvent(new KeyboardEvent("keyup", { key: k })); };
+    b.addEventListener("touchstart", down, { passive: false });
+    b.addEventListener("touchend", up, { passive: false });
+    b.addEventListener("touchcancel", up, { passive: false });
+    b.addEventListener("mousedown", down); b.addEventListener("mouseup", up); b.addEventListener("mouseleave", up);
+    b.addEventListener("contextmenu", e => e.preventDefault());
+  });
+  const tf = $(".tf"); if (tf) tf.textContent = "Steuerkreuz: laufen · A: sprechen · B: zurück";
+  document.addEventListener("touchmove", e => { if (!e.target.closest("#panel")) e.preventDefault(); }, { passive: false });
+}
+setupTap(); setupTouch();
+
+window.__T = { get renderer() { return renderer; }, get C() { return C; }, retryFromSave, showGameOver, get G() { return G; }, get P() { return P; }, get mode() { return mode; }, get B() { return B; }, run, talk, interactTile, startBattle, objectives, MAP, NPCS, newGame, enterWorld, showDebrief };
 init3D(); fitScreen(); showTitle();
 requestAnimationFrame(loop);
 </script>
